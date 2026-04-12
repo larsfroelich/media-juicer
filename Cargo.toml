@@ -1,0 +1,15 @@
+[package]
+name = "media-juicer"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+
+[lib]
+name = "media_juicer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "media-juicer"
+path = "src/main.rs"
+
+[dependencies]
