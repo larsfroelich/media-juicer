@@ -1,3 +1,5 @@
 fn main() {
-    println!("{}", media_juicer::project_summary());
+    if let Err(error) = media_juicer::cli::parse_args() {
+        error.exit();
+    }
 }

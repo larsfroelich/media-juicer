@@ -20,6 +20,8 @@ pub mod progress;
 
 pub mod config;
 
+pub mod cli;
+
 pub mod error;
 pub mod list_files;
 pub mod mk_folder_if_not_exist;
