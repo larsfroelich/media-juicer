@@ -1,3 +1,5 @@
+pub mod image_processing;
+
 pub mod fs_ops;
 
 pub mod progress;
