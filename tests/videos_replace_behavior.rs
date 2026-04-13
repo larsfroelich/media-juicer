@@ -29,7 +29,7 @@ fn video_plan(source: &Path, output_path: &Path) -> ProcessingPlan {
 fn config_with_replace(replace: bool) -> MediaJuicerConfig {
     MediaJuicerConfig {
         mode: ProcessingMode::Videos,
-        replace: replace.then(|| "true".to_string()),
+        replace,
         ..MediaJuicerConfig::default()
     }
 }

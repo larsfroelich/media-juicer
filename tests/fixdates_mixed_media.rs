@@ -5,7 +5,6 @@ use common::{MetadataSizeProvider, MockImageBackend, NoopFfmpegExecutor};
 use media_juicer::app::execute::{ExecutionError, execute_plan};
 use media_juicer::config::{MediaJuicerConfig, ProcessingMode};
 use media_juicer::planning::build_processing_plan;
-use media_juicer::selection::Mode;
 use media_juicer::timestamps::{
     CreationTimestamps, MediaKind as TimestampMediaKind, TimestampProvider,
 };
@@ -46,8 +45,8 @@ fn fixdates_aggregates_failures_for_mixed_media_and_reports_full_progress() {
     fs::write(source_root.join("fail_video.mp4"), b"video-fail").expect("fail video");
     fs::write(source_root.join("nested/fail_image.png"), b"image-fail").expect("fail image");
 
-    let plan =
-        build_processing_plan(&source_root, Mode::Fixdates, None).expect("plan should build");
+    let plan = build_processing_plan(&source_root, ProcessingMode::FixDates, None)
+        .expect("plan should build");
     assert_eq!(plan.files.len(), 3);
 
     let config = MediaJuicerConfig {
@@ -103,13 +102,13 @@ fn fixdates_ignore_timestamps_suppresses_timestamp_lookup_failures() {
     fs::write(source_root.join("fail_video.mp4"), b"video-fail").expect("fail video");
     fs::write(source_root.join("fail_image.png"), b"image-fail").expect("fail image");
 
-    let plan =
-        build_processing_plan(&source_root, Mode::Fixdates, None).expect("plan should build");
+    let plan = build_processing_plan(&source_root, ProcessingMode::FixDates, None)
+        .expect("plan should build");
     assert_eq!(plan.files.len(), 2);
 
     let config = MediaJuicerConfig {
         mode: ProcessingMode::FixDates,
-        ignore_timestamps: Some("true".to_string()),
+        ignore_timestamps: true,
         ..MediaJuicerConfig::default()
     };
 

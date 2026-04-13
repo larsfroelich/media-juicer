@@ -1,30 +1,5 @@
+use crate::config::ProcessingMode;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Mode {
-    All,
-    Videos,
-    Images,
-    Fixdates,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ModeParseError;
-
-impl FromStr for Mode {
-    type Err = ModeParseError;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "all" => Ok(Self::All),
-            "videos" => Ok(Self::Videos),
-            "images" => Ok(Self::Images),
-            "fixdates" => Ok(Self::Fixdates),
-            _ => Err(ModeParseError),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClassifiedFile {
@@ -44,7 +19,11 @@ pub fn filter_by_only(files: &[PathBuf], only_suffix: Option<&str>) -> Vec<PathB
     }
 }
 
-pub fn select_files_for_mode<F>(files: &[PathBuf], mode: Mode, classifier: F) -> Vec<PathBuf>
+pub fn select_files_for_mode<F>(
+    files: &[PathBuf],
+    mode: ProcessingMode,
+    classifier: F,
+) -> Vec<PathBuf>
 where
     F: Fn(&Path) -> ClassifiedFile,
 {
@@ -54,10 +33,10 @@ where
             matches!(
                 (mode, classifier(path.as_path())),
                 (
-                    Mode::All | Mode::Fixdates,
+                    ProcessingMode::All | ProcessingMode::FixDates,
                     ClassifiedFile::Image | ClassifiedFile::Video
-                ) | (Mode::Videos, ClassifiedFile::Video)
-                    | (Mode::Images, ClassifiedFile::Image)
+                ) | (ProcessingMode::Videos, ClassifiedFile::Video)
+                    | (ProcessingMode::Images, ClassifiedFile::Image)
             )
         })
         .cloned()
@@ -73,13 +52,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        ClassifiedFile, Mode, ModeParseError, compute_total_bytes, filter_by_only,
-        select_files_for_mode,
-    };
+    use super::{ClassifiedFile, compute_total_bytes, filter_by_only, select_files_for_mode};
+    use crate::config::ProcessingMode;
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
-    use std::str::FromStr;
 
     fn demo_files() -> Vec<PathBuf> {
         vec![
@@ -110,20 +86,11 @@ mod tests {
     }
 
     #[test]
-    fn mode_parsing_rejects_invalid_values() {
-        assert_eq!(Mode::from_str("all"), Ok(Mode::All));
-        assert_eq!(Mode::from_str("fixdates"), Ok(Mode::Fixdates));
-        assert_eq!(Mode::from_str("videos"), Ok(Mode::Videos));
-        assert_eq!(Mode::from_str("images"), Ok(Mode::Images));
-        assert_eq!(Mode::from_str("invalid"), Err(ModeParseError));
-    }
-
-    #[test]
     fn all_and_fixdates_select_images_and_videos() {
         let files = demo_files();
 
-        let all_selected = select_files_for_mode(&files, Mode::All, classifier);
-        let fixdates_selected = select_files_for_mode(&files, Mode::Fixdates, classifier);
+        let all_selected = select_files_for_mode(&files, ProcessingMode::All, classifier);
+        let fixdates_selected = select_files_for_mode(&files, ProcessingMode::FixDates, classifier);
 
         let expected = vec![
             PathBuf::from("/media/photo.jpg"),
@@ -139,10 +106,10 @@ mod tests {
     fn videos_and_images_modes_select_only_their_kind() {
         let files = demo_files();
 
-        let videos = select_files_for_mode(&files, Mode::Videos, classifier);
+        let videos = select_files_for_mode(&files, ProcessingMode::Videos, classifier);
         assert_eq!(videos, vec![PathBuf::from("/media/clip.mp4")]);
 
-        let images = select_files_for_mode(&files, Mode::Images, classifier);
+        let images = select_files_for_mode(&files, ProcessingMode::Images, classifier);
         assert_eq!(
             images,
             vec![

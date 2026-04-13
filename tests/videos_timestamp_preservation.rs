@@ -7,7 +7,9 @@ use media_juicer::planning::{PlannedFile, ProcessingPlan};
 use media_juicer::timestamps::{
     CreationTimestamps, MediaKind as TimestampMediaKind, TimestampProvider,
 };
-use media_juicer::video_processing::{FfmpegExecutor, FfmpegRunOutput, FileSizeProvider, output_path_mp4};
+use media_juicer::video_processing::{
+    FfmpegExecutor, FfmpegRunOutput, FileSizeProvider, output_path_mp4,
+};
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -122,7 +124,7 @@ fn video_plan(source: &Path, output_path: &Path) -> ProcessingPlan {
 fn config_with_replace(replace: bool) -> MediaJuicerConfig {
     MediaJuicerConfig {
         mode: ProcessingMode::Videos,
-        replace: replace.then(|| "true".to_string()),
+        replace,
         ..MediaJuicerConfig::default()
     }
 }

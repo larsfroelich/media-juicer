@@ -155,7 +155,7 @@ fn process_image<B: ImageBackend>(
         output_path: file.output_path.clone(),
         quality,
         max_pixels,
-        ignore_timestamps: config.ignore_timestamps.is_some(),
+        ignore_timestamps: config.ignore_timestamps,
     };
 
     process_image_job(&job, image_backend)
@@ -173,7 +173,7 @@ fn process_video_file(
     let video_max_pixels = u32::try_from(config.video_max_pixels)
         .map_err(|_| format!("invalid video max pixels: {}", config.video_max_pixels))?;
 
-    let replace = config.replace.is_some();
+    let replace = config.replace;
 
     let job = VideoJob {
         src_file: file.source_path.clone(),
@@ -202,7 +202,7 @@ fn process_fix_dates<T: TimestampProvider>(
         .creation_timestamps(&file.source_path, timestamp_kind(file.media_kind))
     {
         Ok(timestamps) => timestamps,
-        Err(_error) if config.ignore_timestamps.is_some() => return Ok(()),
+        Err(_error) if config.ignore_timestamps => return Ok(()),
         Err(error) => return Err(error.to_string()),
     };
 
@@ -212,7 +212,7 @@ fn process_fix_dates<T: TimestampProvider>(
     let action = decide_action(exif, metadata);
     match apply_action(&file.source_path, action, exif) {
         Ok(()) => Ok(()),
-        Err(_error) if config.ignore_timestamps.is_some() => Ok(()),
+        Err(_error) if config.ignore_timestamps => Ok(()),
         Err(error) => Err(error.to_string()),
     }
 }
@@ -348,9 +348,9 @@ mod tests {
             folder_path: "/tmp".to_string(),
             verbose: false,
             mode,
-            replace: None,
+            replace: false,
             only: None,
-            ignore_timestamps: None,
+            ignore_timestamps: false,
             crf: 28,
             ffmpeg_speed: FfmpegPreset::Faster,
             video_max_pixels: 0,

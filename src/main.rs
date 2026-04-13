@@ -5,7 +5,6 @@ use media_juicer::app::execute::{ExecutionError, execute_plan};
 use media_juicer::error::MediaJuicerError;
 use media_juicer::image_processing::SystemImageBackend;
 use media_juicer::planning::build_processing_plan;
-use media_juicer::selection::Mode;
 use media_juicer::timestamps::FileSystemTimestampProvider;
 use media_juicer::video_processing::{StdFileSizeProvider, SystemFfmpegExecutor};
 
@@ -28,17 +27,16 @@ fn main() -> ExitCode {
         return ExitCode::from(EXIT_INVALID_INPUT);
     }
 
-    let plan =
-        match build_processing_plan(source_path, map_mode(config.mode), config.only.as_deref()) {
-            Ok(plan) => plan,
-            Err(err) => {
-                eprintln!("{err}");
-                return match err {
-                    MediaJuicerError::InvalidInput(_) => ExitCode::from(EXIT_INVALID_INPUT),
-                    MediaJuicerError::Io(_) => ExitCode::from(EXIT_PARTIAL_FAILURE),
-                };
-            }
-        };
+    let plan = match build_processing_plan(source_path, config.mode, config.only.as_deref()) {
+        Ok(plan) => plan,
+        Err(err) => {
+            eprintln!("{err}");
+            return match err {
+                MediaJuicerError::InvalidInput(_) => ExitCode::from(EXIT_INVALID_INPUT),
+                MediaJuicerError::Io(_) => ExitCode::from(EXIT_PARTIAL_FAILURE),
+            };
+        }
+    };
 
     let image_backend = SystemImageBackend;
     let ffmpeg_executor = SystemFfmpegExecutor;
@@ -70,14 +68,5 @@ fn main() -> ExitCode {
             eprintln!("{err}");
             ExitCode::from(EXIT_PARTIAL_FAILURE)
         }
-    }
-}
-
-fn map_mode(mode: media_juicer::config::ProcessingMode) -> Mode {
-    match mode {
-        media_juicer::config::ProcessingMode::All => Mode::All,
-        media_juicer::config::ProcessingMode::Videos => Mode::Videos,
-        media_juicer::config::ProcessingMode::Images => Mode::Images,
-        media_juicer::config::ProcessingMode::FixDates => Mode::Fixdates,
     }
 }

@@ -194,25 +194,21 @@ where
         .collect()
 }
 
-fn parse_legacy_bool(value: Option<&String>, field: &str) -> Result<Option<String>, clap::Error> {
+fn parse_legacy_bool(value: Option<&String>, field: &str) -> Result<bool, clap::Error> {
     let Some(raw) = value else {
-        return Ok(None);
+        return Ok(false);
     };
 
-    let normalized = match raw.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "y" | "on" => Some("true".to_string()),
-        "0" | "false" | "no" | "n" | "off" => None,
-        _ => {
-            return Err(clap::Error::raw(
-                ErrorKind::ValueValidation,
-                format!(
-                    "invalid boolean for --{field}: '{raw}'. Allowed values: true/false, 1/0, yes/no"
-                ),
-            ));
-        }
-    };
-
-    Ok(normalized)
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "y" | "on" => Ok(true),
+        "0" | "false" | "no" | "n" | "off" => Ok(false),
+        _ => Err(clap::Error::raw(
+            ErrorKind::ValueValidation,
+            format!(
+                "invalid boolean for --{field}: '{raw}'. Allowed values: true/false, 1/0, yes/no"
+            ),
+        )),
+    }
 }
 
 fn parse_i32_inclusive(raw: &str, field: &str, min: i32, max: i32) -> Result<i32, clap::Error> {
@@ -263,9 +259,9 @@ mod tests {
         assert_eq!(parsed.folder_path, "/tmp/input");
         assert!(!parsed.verbose);
         assert_eq!(parsed.mode, ProcessingMode::All);
-        assert_eq!(parsed.replace, None);
+        assert!(!parsed.replace);
         assert_eq!(parsed.only, None);
-        assert_eq!(parsed.ignore_timestamps, None);
+        assert!(!parsed.ignore_timestamps);
         assert_eq!(parsed.crf, 28);
         assert_eq!(parsed.ffmpeg_speed, FfmpegPreset::Faster);
         assert_eq!(parsed.video_max_pixels, 0);
@@ -306,9 +302,9 @@ mod tests {
 
         assert!(parsed.verbose);
         assert_eq!(parsed.mode, ProcessingMode::Videos);
-        assert_eq!(parsed.replace, Some("true".to_string()));
+        assert!(parsed.replace);
         assert_eq!(parsed.only.as_deref(), Some("clip.mov"));
-        assert_eq!(parsed.ignore_timestamps, None);
+        assert!(!parsed.ignore_timestamps);
         assert_eq!(parsed.crf, 30);
         assert_eq!(parsed.ffmpeg_speed, FfmpegPreset::Slow);
         assert_eq!(parsed.video_max_pixels, 1920);
@@ -328,5 +324,25 @@ mod tests {
         let error =
             parse_args_from(["media-juicer", "/tmp/input", "--replace=banana"]).unwrap_err();
         assert!(error.to_string().contains("invalid boolean"));
+    }
+
+    #[test]
+    fn parses_legacy_boolean_forms() {
+        let replace_flag = parse_args_from(["media-juicer", "/tmp/input", "--replace"]).unwrap();
+        assert!(replace_flag.replace);
+
+        let replace_true =
+            parse_args_from(["media-juicer", "/tmp/input", "--replace=true"]).unwrap();
+        assert!(replace_true.replace);
+
+        let replace_one = parse_args_from(["media-juicer", "/tmp/input", "--replace=1"]).unwrap();
+        assert!(replace_one.replace);
+
+        let replace_zero = parse_args_from(["media-juicer", "/tmp/input", "--replace=0"]).unwrap();
+        assert!(!replace_zero.replace);
+
+        let ignore_yes =
+            parse_args_from(["media-juicer", "/tmp/input", "--ignore-timestamps=yes"]).unwrap();
+        assert!(ignore_yes.ignore_timestamps);
     }
 }
