@@ -1,39 +1,33 @@
-pub mod video_processing;
-
-pub mod external_apps;
-
 pub mod app;
+pub mod core;
+pub mod io;
+pub mod media;
+pub mod time;
 
-pub mod timestamp_policy;
+pub use core::error::{MediaJuicerError, Result};
+pub use core::error;
 
-pub mod media_kind;
+// Backward-compatible re-exports for existing call sites.
+pub use core::cli;
+pub use core::config;
+pub use core::planning;
+pub use core::progress;
+pub use core::selection;
 
-pub mod fs_discovery;
+pub use io::external_apps;
+pub use io::fs_discovery;
+pub use io::fs_ops;
+pub use io::list_files;
+pub use io::mk_folder_if_not_exist;
 
-pub mod selection;
+pub use media::image_processing;
+pub use media::media_kind;
+pub use media::video_processing;
 
-pub mod planning;
-
-pub mod fix_dates;
-
-pub mod image_processing;
-
-pub mod progress;
-
-pub mod fs_ops;
-
-pub mod config;
-
-pub mod cli;
-
-pub mod error;
-pub(crate) mod exif_dates;
-pub mod list_files;
-pub mod mk_folder_if_not_exist;
-
-pub use error::{MediaJuicerError, Result};
-
-pub mod timestamps;
+pub use time::fix_dates;
+pub(crate) use time::exif_dates;
+pub use time::timestamp_policy;
+pub use time::timestamps;
 
 /// Returns a short description of the crate's current focus.
 pub fn project_summary() -> &'static str {
