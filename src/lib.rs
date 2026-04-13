@@ -1,3 +1,5 @@
+pub mod video_processing;
+
 pub mod selection;
 
 pub mod fix_dates;
