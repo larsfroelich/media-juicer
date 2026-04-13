@@ -8,6 +8,8 @@ pub mod fs_discovery;
 
 pub mod selection;
 
+pub mod planning;
+
 pub mod fix_dates;
 
 pub mod image_processing;
