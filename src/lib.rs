@@ -1,3 +1,5 @@
+pub mod progress;
+
 pub mod fs_ops;
 
 pub mod config;
