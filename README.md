@@ -15,6 +15,13 @@ The current setup is intentionally minimal: one crate with a library used by the
 cargo run
 ```
 
+## Supported input formats
+
+- Images: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.exif`
+- Videos: `.mp4`, `.mov`, `.mkv`, `.avi`, `.mts`, `.vob`, `.ts`, `.mpg`, `.mpeg`
+
+`.heic`/`.heif` are currently not supported as image inputs.
+
 ## Codex setup
 
 Run the setup script once per development environment (safe to re-run):

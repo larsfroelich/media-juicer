@@ -11,7 +11,7 @@ const VIDEO_EXTENSIONS: &[&str] = &[
     ".mp4", ".mov", ".mkv", ".avi", ".mts", ".vob", ".ts", ".mpg", ".mpeg",
 ];
 
-const IMAGE_EXTENSIONS: &[&str] = &[".jpg", ".jpeg", ".png", ".bmp", ".heic", ".heif", ".exif"];
+const IMAGE_EXTENSIONS: &[&str] = &[".jpg", ".jpeg", ".png", ".bmp", ".exif"];
 
 pub fn classify_path(path: impl AsRef<Path>) -> MediaKind {
     let path_lower = path.as_ref().to_string_lossy().to_lowercase();
@@ -127,6 +127,12 @@ mod tests {
                 case.input
             );
         }
+    }
+
+    #[test]
+    fn classify_path_treats_heic_and_heif_as_other_until_decoder_exists() {
+        assert_eq!(classify_path("photo.heic"), MediaKind::Other);
+        assert_eq!(classify_path("photo.HEIF"), MediaKind::Other);
     }
 
     #[test]
