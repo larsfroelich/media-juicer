@@ -1,3 +1,5 @@
+pub mod fs_discovery;
+
 pub mod selection;
 
 pub mod fix_dates;
