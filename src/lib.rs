@@ -1,3 +1,5 @@
+pub mod media_kind;
+
 pub mod fs_discovery;
 
 pub mod selection;
