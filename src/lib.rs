@@ -1,3 +1,5 @@
+pub mod selection;
+
 pub mod fix_dates;
 
 pub mod image_processing;
