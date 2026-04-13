@@ -4,7 +4,6 @@ use common::{MetadataSizeProvider, MockImageBackend, NoopFfmpegExecutor, NoopTim
 use media_juicer::app::execute::execute_plan;
 use media_juicer::config::{MediaJuicerConfig, ProcessingMode};
 use media_juicer::planning::build_processing_plan;
-use media_juicer::selection::Mode;
 use std::fs;
 
 #[test]
@@ -18,7 +17,8 @@ fn images_pipeline_builds_plan_and_executes_with_mock_backend() {
     fs::write(source_root.join("nested/deeper/clip.mp4"), b"video").expect("video");
     fs::write(source_root.join("notes.txt"), b"other").expect("other");
 
-    let plan = build_processing_plan(&source_root, Mode::Images, None).expect("plan should build");
+    let plan = build_processing_plan(&source_root, ProcessingMode::Images, None)
+        .expect("plan should build");
 
     assert_eq!(plan.files.len(), 2, "only image files should be selected");
     assert!(plan.out_folder_path.join("nested").is_dir());
@@ -26,7 +26,7 @@ fn images_pipeline_builds_plan_and_executes_with_mock_backend() {
 
     let config = MediaJuicerConfig {
         mode: ProcessingMode::Images,
-        ignore_timestamps: Some("true".to_string()),
+        ignore_timestamps: true,
         ..MediaJuicerConfig::default()
     };
 

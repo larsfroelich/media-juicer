@@ -1,13 +1,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::config::ProcessingMode;
 use crate::error::{MediaJuicerError, Result};
 use crate::fs_discovery::{list_files, list_folders};
 use crate::list_files::map_to_output_path;
 use crate::media_kind::{MediaKind, classify_path};
 use crate::mk_folder_if_not_exist::ensure_folder_exists;
 use crate::selection::{
-    ClassifiedFile, Mode, compute_total_bytes, filter_by_only, select_files_for_mode,
+    ClassifiedFile, compute_total_bytes, filter_by_only, select_files_for_mode,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,7 +29,7 @@ pub struct ProcessingPlan {
 
 pub fn build_processing_plan(
     source_root: &Path,
-    mode: Mode,
+    mode: ProcessingMode,
     only_suffix: Option<&str>,
 ) -> Result<ProcessingPlan> {
     let out_folder_path = out_folder_for_source(source_root)?;
@@ -98,7 +99,7 @@ fn out_folder_for_source(source_root: &Path) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::{build_processing_plan, out_folder_for_source};
-    use crate::selection::Mode;
+    use crate::config::ProcessingMode;
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -151,7 +152,7 @@ mod tests {
         fs::write(&keep_image, vec![0_u8; 30]).unwrap();
         fs::write(&skip_other, vec![1_u8; 50]).unwrap();
 
-        let plan = build_processing_plan(&source_root, Mode::All, Some(".jpg")).unwrap();
+        let plan = build_processing_plan(&source_root, ProcessingMode::All, Some(".jpg")).unwrap();
 
         assert_eq!(plan.total_bytes_to_process, 30);
         assert_eq!(plan.files.len(), 1);
@@ -177,7 +178,7 @@ mod tests {
         fs::write(&video, vec![0_u8; 111]).unwrap();
         fs::write(&image, vec![0_u8; 222]).unwrap();
 
-        let plan = build_processing_plan(&source_root, Mode::Videos, None).unwrap();
+        let plan = build_processing_plan(&source_root, ProcessingMode::Videos, None).unwrap();
 
         assert_eq!(plan.files.len(), 1);
         assert_eq!(plan.files[0].source_path, video);

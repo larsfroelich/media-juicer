@@ -104,9 +104,9 @@ pub struct MediaJuicerConfig {
     pub folder_path: String,
     pub verbose: bool,
     pub mode: ProcessingMode,
-    pub replace: Option<String>,
+    pub replace: bool,
     pub only: Option<String>,
-    pub ignore_timestamps: Option<String>,
+    pub ignore_timestamps: bool,
     pub crf: i32,
     pub ffmpeg_speed: FfmpegPreset,
     pub video_max_pixels: i32,
@@ -120,9 +120,9 @@ impl Default for MediaJuicerConfig {
             folder_path: String::new(),
             verbose: false,
             mode: ProcessingMode::All,
-            replace: None,
+            replace: false,
             only: None,
-            ignore_timestamps: None,
+            ignore_timestamps: false,
             crf: 28,
             ffmpeg_speed: FfmpegPreset::Faster,
             video_max_pixels: 0,
@@ -175,9 +175,9 @@ mod tests {
         assert_eq!(config.folder_path, "");
         assert!(!config.verbose);
         assert_eq!(config.mode, ProcessingMode::All);
-        assert_eq!(config.replace, None);
+        assert!(!config.replace);
         assert_eq!(config.only, None);
-        assert_eq!(config.ignore_timestamps, None);
+        assert!(!config.ignore_timestamps);
         assert_eq!(config.crf, 28);
         assert_eq!(config.ffmpeg_speed, FfmpegPreset::Faster);
         assert_eq!(config.video_max_pixels, 0);
