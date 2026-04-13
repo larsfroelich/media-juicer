@@ -126,12 +126,7 @@ impl From<std::io::Error> for ImageProcessingError {
 }
 
 pub fn resolve_webp_output_path(output_path: &Path) -> PathBuf {
-    let output_path_str = output_path.to_string_lossy();
-    if output_path_str.to_ascii_lowercase().ends_with(".webp") {
-        output_path.to_path_buf()
-    } else {
-        PathBuf::from(format!("{output_path_str}.webp"))
-    }
+    crate::media_kind::image_output_path(output_path)
 }
 
 pub fn temp_output_path_for(output_path: &Path) -> PathBuf {

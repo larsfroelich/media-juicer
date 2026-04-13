@@ -135,7 +135,7 @@ fn process_file<B: ImageBackend, T: TimestampProvider>(
         ProcessingMode::All | ProcessingMode::Videos if file.media_kind == MediaKind::Video => {
             process_video_file(file, config, ffmpeg_executor, file_size_provider)
         }
-        ProcessingMode::FixDates => process_fix_dates(file, timestamp_provider),
+        ProcessingMode::FixDates => process_fix_dates(file, config, timestamp_provider),
         _ => Ok(()),
     }
 }
@@ -195,17 +195,27 @@ fn process_video_file(
 
 fn process_fix_dates<T: TimestampProvider>(
     file: &PlannedFile,
+    config: &MediaJuicerConfig,
     timestamp_provider: &T,
 ) -> Result<(), String> {
-    let timestamps = timestamp_provider
-        .creation_timestamps(&file.source_path, timestamp_kind(file.media_kind))
-        .map_err(|error| error.to_string())?;
+    let timestamps = match timestamp_provider.creation_timestamps(
+        &file.source_path,
+        timestamp_kind(file.media_kind),
+    ) {
+        Ok(timestamps) => timestamps,
+        Err(_error) if config.ignore_timestamps.is_some() => return Ok(()),
+        Err(error) => return Err(error.to_string()),
+    };
 
     let exif = timestamps.exif.map(SystemTime::from);
     let metadata = timestamps.metadata.map(SystemTime::from);
 
     let action = decide_action(exif, metadata);
-    apply_action(&file.source_path, action, exif).map_err(|error| error.to_string())
+    match apply_action(&file.source_path, action, exif) {
+        Ok(()) => Ok(()),
+        Err(_error) if config.ignore_timestamps.is_some() => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 fn timestamp_kind(kind: MediaKind) -> TimestampMediaKind {

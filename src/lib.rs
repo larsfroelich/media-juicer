@@ -4,8 +4,8 @@ pub mod io;
 pub mod media;
 pub mod time;
 
-pub use core::error::{MediaJuicerError, Result};
 pub use core::error;
+pub use core::error::{MediaJuicerError, Result};
 
 // Backward-compatible re-exports for existing call sites.
 pub use core::cli;
@@ -24,8 +24,8 @@ pub use media::image_processing;
 pub use media::media_kind;
 pub use media::video_processing;
 
-pub use time::fix_dates;
 pub(crate) use time::exif_dates;
+pub use time::fix_dates;
 pub use time::timestamp_policy;
 pub use time::timestamps;
 

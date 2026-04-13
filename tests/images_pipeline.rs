@@ -3,7 +3,9 @@ use media_juicer::config::{MediaJuicerConfig, ProcessingMode};
 use media_juicer::image_processing::{BackendImage, ImageBackend, ImageProcessingError};
 use media_juicer::planning::build_processing_plan;
 use media_juicer::selection::Mode;
-use media_juicer::timestamps::{CreationTimestamps, MediaKind as TimestampMediaKind, TimestampProvider};
+use media_juicer::timestamps::{
+    CreationTimestamps, MediaKind as TimestampMediaKind, TimestampProvider,
+};
 use media_juicer::video_processing::{FfmpegExecutor, FfmpegRunOutput, FileSizeProvider};
 use std::fs;
 use std::io;
@@ -14,10 +16,17 @@ struct MockImageBackend;
 
 impl ImageBackend for MockImageBackend {
     fn open(&self, _source_path: &Path) -> Result<BackendImage, ImageProcessingError> {
-        Ok(BackendImage::new(image::DynamicImage::new_rgba8(1, 1), None))
+        Ok(BackendImage::new(
+            image::DynamicImage::new_rgba8(1, 1),
+            None,
+        ))
     }
 
-    fn resize(&self, _image: &mut BackendImage, _max_pixels: u32) -> Result<(), ImageProcessingError> {
+    fn resize(
+        &self,
+        _image: &mut BackendImage,
+        _max_pixels: u32,
+    ) -> Result<(), ImageProcessingError> {
         Ok(())
     }
 

@@ -73,14 +73,7 @@ pub enum ProcessOutcome {
 }
 
 pub fn output_path_mp4(path: &Path) -> PathBuf {
-    if path
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case(OsStr::new("mp4")))
-    {
-        path.to_path_buf()
-    } else {
-        PathBuf::from(format!("{}.mp4", path.to_string_lossy()))
-    }
+    crate::media_kind::video_output_path(path)
 }
 
 pub fn temp_output_path(output_path: &Path) -> PathBuf {
