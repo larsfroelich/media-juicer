@@ -31,13 +31,19 @@ pub fn build_processing_plan(
     mode: Mode,
     only_suffix: Option<&str>,
 ) -> Result<ProcessingPlan> {
-    let out_folder_path = out_folder_for_source(source_root)?;
+    let out_folder_path = if mode == Mode::Fixdates {
+        source_root.to_path_buf()
+    } else {
+        out_folder_for_source(source_root)?
+    };
 
-    ensure_folder_exists(&out_folder_path)?;
+    if mode != Mode::Fixdates {
+        ensure_folder_exists(&out_folder_path)?;
 
-    for src_folder in list_folders(source_root)? {
-        let mirrored_folder = map_to_output_path(source_root, &out_folder_path, &src_folder)?;
-        ensure_folder_exists(&mirrored_folder)?;
+        for src_folder in list_folders(source_root)? {
+            let mirrored_folder = map_to_output_path(source_root, &out_folder_path, &src_folder)?;
+            ensure_folder_exists(&mirrored_folder)?;
+        }
     }
 
     let discovered_files = list_files(source_root)?;
@@ -182,5 +188,18 @@ mod tests {
         assert_eq!(plan.files.len(), 1);
         assert_eq!(plan.files[0].source_path, video);
         assert_eq!(plan.total_bytes_to_process, 111);
+    }
+
+    #[test]
+    fn fixdates_mode_uses_source_root_and_skips_compressed_tree_creation() {
+        let tmp = TempDir::new("planning-fixdates");
+        let source_root = tmp.path().join("source");
+        fs::create_dir_all(&source_root).unwrap();
+        fs::write(source_root.join("clip.mp4"), b"video").unwrap();
+
+        let plan = build_processing_plan(&source_root, Mode::Fixdates, None).unwrap();
+
+        assert_eq!(plan.out_folder_path, source_root);
+        assert!(!tmp.path().join("source_compressed").is_dir());
     }
 }
