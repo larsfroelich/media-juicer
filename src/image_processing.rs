@@ -1,12 +1,13 @@
 use std::fmt::{Display, Formatter};
 use std::fs;
-use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 use filetime::{FileTime, set_file_mtime};
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView};
+
+use crate::exif_dates;
 
 const TIMESTAMP_MISMATCH_THRESHOLD: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -185,39 +186,7 @@ pub fn process_image_job<B: ImageBackend>(
 }
 
 fn read_exif_timestamp(source_path: &Path) -> Option<SystemTime> {
-    let ext = source_path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-
-    if !matches!(
-        ext.as_str(),
-        "jpg" | "jpeg" | "png" | "bmp" | "heic" | "heif"
-    ) {
-        return None;
-    }
-
-    let file = fs::File::open(source_path).ok()?;
-    let mut reader = BufReader::new(file);
-    let exif_reader = exif::Reader::new().read_from_container(&mut reader).ok()?;
-    let field = exif_reader
-        .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
-        .or_else(|| exif_reader.get_field(exif::Tag::DateTime, exif::In::PRIMARY))?;
-    let parsed =
-        exif::DateTime::from_ascii(&field.display_value().to_string().into_bytes()).ok()?;
-
-    let naive = chrono::NaiveDate::from_ymd_opt(
-        parsed.year.into(),
-        parsed.month.into(),
-        parsed.day.into(),
-    )?
-    .and_hms_opt(
-        parsed.hour.into(),
-        parsed.minute.into(),
-        parsed.second.into(),
-    )?;
-    Some(chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive, chrono::Utc).into())
+    exif_dates::read_exif_timestamp(source_path, None).map(SystemTime::from)
 }
 
 fn timestamps_mismatch(
