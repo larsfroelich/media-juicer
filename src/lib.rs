@@ -1,3 +1,5 @@
+pub mod timestamps;
+
 pub mod timestamp_policy;
 
 pub mod video_processing;
