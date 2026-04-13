@@ -1,9 +1,12 @@
 use std::fmt::{Display, Formatter};
 use std::fs;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 use filetime::{FileTime, set_file_mtime};
+use image::imageops::FilterType;
+use image::{DynamicImage, GenericImageView};
 
 const TIMESTAMP_MISMATCH_THRESHOLD: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -19,6 +22,16 @@ pub struct ImageJob {
 #[derive(Debug, Clone)]
 pub struct BackendImage {
     pub source_timestamp: Option<SystemTime>,
+    pub decoded: DynamicImage,
+}
+
+impl BackendImage {
+    pub fn new(decoded: DynamicImage, source_timestamp: Option<SystemTime>) -> Self {
+        Self {
+            source_timestamp,
+            decoded,
+        }
+    }
 }
 
 pub trait ImageBackend {
@@ -31,6 +44,54 @@ pub trait ImageBackend {
         temp_output_path: &Path,
         quality: u8,
     ) -> Result<(), ImageProcessingError>;
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SystemImageBackend;
+
+impl ImageBackend for SystemImageBackend {
+    fn open(&self, source_path: &Path) -> Result<BackendImage, ImageProcessingError> {
+        let decoded = image::open(source_path).map_err(|error| {
+            ImageProcessingError::Backend(format!("failed to decode image: {error}"))
+        })?;
+
+        let source_timestamp = read_exif_timestamp(source_path).or_else(|| {
+            fs::metadata(source_path)
+                .ok()
+                .and_then(|metadata| metadata.modified().ok())
+        });
+
+        Ok(BackendImage::new(decoded, source_timestamp))
+    }
+
+    fn resize(
+        &self,
+        image: &mut BackendImage,
+        max_pixels: u32,
+    ) -> Result<(), ImageProcessingError> {
+        let (width, height) = image.decoded.dimensions();
+        if width <= max_pixels && height <= max_pixels {
+            return Ok(());
+        }
+
+        image.decoded = image
+            .decoded
+            .resize(max_pixels, max_pixels, FilterType::Lanczos3);
+        Ok(())
+    }
+
+    fn save(
+        &self,
+        image: &BackendImage,
+        temp_output_path: &Path,
+        quality: u8,
+    ) -> Result<(), ImageProcessingError> {
+        let rgba = image.decoded.to_rgba8();
+        let encoder = webp::Encoder::from_rgba(rgba.as_raw(), rgba.width(), rgba.height());
+        let encoded = encoder.encode(quality as f32);
+        fs::write(temp_output_path, encoded.as_ref())?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -113,13 +174,50 @@ pub fn process_image_job<B: ImageBackend>(
 
     backend.save(&image, &temp_output_path, job.quality)?;
 
+    let output_timestamp = image.source_timestamp.unwrap_or(source_modified);
     set_file_mtime(
         &temp_output_path,
-        FileTime::from_system_time(source_modified),
+        FileTime::from_system_time(output_timestamp),
     )?;
     fs::rename(&temp_output_path, &output_path)?;
 
     Ok(ProcessOutcome::Processed)
+}
+
+fn read_exif_timestamp(source_path: &Path) -> Option<SystemTime> {
+    let ext = source_path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    if !matches!(
+        ext.as_str(),
+        "jpg" | "jpeg" | "png" | "bmp" | "heic" | "heif"
+    ) {
+        return None;
+    }
+
+    let file = fs::File::open(source_path).ok()?;
+    let mut reader = BufReader::new(file);
+    let exif_reader = exif::Reader::new().read_from_container(&mut reader).ok()?;
+    let field = exif_reader
+        .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
+        .or_else(|| exif_reader.get_field(exif::Tag::DateTime, exif::In::PRIMARY))?;
+    let parsed =
+        exif::DateTime::from_ascii(&field.display_value().to_string().into_bytes()).ok()?;
+
+    let naive = chrono::NaiveDate::from_ymd_opt(
+        parsed.year.into(),
+        parsed.month.into(),
+        parsed.day.into(),
+    )?
+    .and_hms_opt(
+        parsed.hour.into(),
+        parsed.minute.into(),
+        parsed.second.into(),
+    )?;
+    Some(chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive, chrono::Utc).into())
 }
 
 fn timestamps_mismatch(
@@ -179,9 +277,10 @@ mod tests {
     impl ImageBackend for MockBackend {
         fn open(&self, _source_path: &Path) -> Result<BackendImage, ImageProcessingError> {
             self.state.borrow_mut().open_calls += 1;
-            Ok(BackendImage {
-                source_timestamp: self.timestamp_to_return,
-            })
+            Ok(BackendImage::new(
+                DynamicImage::new_rgba8(1, 1),
+                self.timestamp_to_return,
+            ))
         }
 
         fn resize(

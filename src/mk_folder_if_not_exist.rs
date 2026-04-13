@@ -7,7 +7,9 @@ pub fn ensure_folder_exists(path: &Path) -> Result<bool> {
         if path.is_dir() {
             return Ok(false);
         }
-        return Err(MediaJuicerError::InvalidInput("path exists but is not a directory"));
+        return Err(MediaJuicerError::InvalidInput(
+            "path exists but is not a directory",
+        ));
     }
 
     std::fs::create_dir_all(path)?;

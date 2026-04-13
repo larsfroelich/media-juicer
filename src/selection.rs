@@ -53,8 +53,10 @@ where
         .filter(|path| {
             matches!(
                 (mode, classifier(path.as_path())),
-                (Mode::All | Mode::Fixdates, ClassifiedFile::Image | ClassifiedFile::Video)
-                    | (Mode::Videos, ClassifiedFile::Video)
+                (
+                    Mode::All | Mode::Fixdates,
+                    ClassifiedFile::Image | ClassifiedFile::Video
+                ) | (Mode::Videos, ClassifiedFile::Video)
                     | (Mode::Images, ClassifiedFile::Image)
             )
         })
@@ -72,8 +74,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        compute_total_bytes, filter_by_only, select_files_for_mode, ClassifiedFile, Mode,
-        ModeParseError,
+        ClassifiedFile, Mode, ModeParseError, compute_total_bytes, filter_by_only,
+        select_files_for_mode,
     };
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};

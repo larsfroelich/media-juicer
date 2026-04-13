@@ -249,9 +249,10 @@ mod tests {
 
     impl ImageBackend for OkImageBackend {
         fn open(&self, _source_path: &Path) -> Result<BackendImage, ImageProcessingError> {
-            Ok(BackendImage {
-                source_timestamp: None,
-            })
+            Ok(BackendImage::new(
+                image::DynamicImage::new_rgba8(1, 1),
+                None,
+            ))
         }
 
         fn resize(

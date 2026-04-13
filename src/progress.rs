@@ -37,7 +37,10 @@ impl ProgressTracker {
             return 0.0;
         }
 
-        round_to((self.processed_bytes as f64 / self.total_bytes as f64) * 100.0, 2)
+        round_to(
+            (self.processed_bytes as f64 / self.total_bytes as f64) * 100.0,
+            2,
+        )
     }
 
     pub fn snapshot(&self) -> ProgressSnapshot {

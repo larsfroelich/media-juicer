@@ -187,17 +187,35 @@ mod tests {
 
     #[test]
     fn valid_mode_values_parse() {
-        assert_eq!(ProcessingMode::from_str("all").unwrap(), ProcessingMode::All);
-        assert_eq!(ProcessingMode::from_str("videos").unwrap(), ProcessingMode::Videos);
-        assert_eq!(ProcessingMode::from_str("images").unwrap(), ProcessingMode::Images);
-        assert_eq!(ProcessingMode::from_str("fixdates").unwrap(), ProcessingMode::FixDates);
+        assert_eq!(
+            ProcessingMode::from_str("all").unwrap(),
+            ProcessingMode::All
+        );
+        assert_eq!(
+            ProcessingMode::from_str("videos").unwrap(),
+            ProcessingMode::Videos
+        );
+        assert_eq!(
+            ProcessingMode::from_str("images").unwrap(),
+            ProcessingMode::Images
+        );
+        assert_eq!(
+            ProcessingMode::from_str("fixdates").unwrap(),
+            ProcessingMode::FixDates
+        );
     }
 
     #[test]
     fn valid_ffmpeg_presets_parse() {
-        assert_eq!(FfmpegPreset::from_str("faster").unwrap(), FfmpegPreset::Faster);
+        assert_eq!(
+            FfmpegPreset::from_str("faster").unwrap(),
+            FfmpegPreset::Faster
+        );
         assert_eq!(FfmpegPreset::from_str("slow").unwrap(), FfmpegPreset::Slow);
-        assert_eq!(FfmpegPreset::from_str("placebo").unwrap(), FfmpegPreset::Placebo);
+        assert_eq!(
+            FfmpegPreset::from_str("placebo").unwrap(),
+            FfmpegPreset::Placebo
+        );
     }
 
     #[test]

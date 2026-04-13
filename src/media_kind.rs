@@ -11,7 +11,7 @@ const VIDEO_EXTENSIONS: &[&str] = &[
     ".mp4", ".mov", ".mkv", ".avi", ".mts", ".vob", ".ts", ".mpg", ".mpeg",
 ];
 
-const IMAGE_EXTENSIONS: &[&str] = &[".jpg", ".jpeg", ".png", ".bmp", ".exif"];
+const IMAGE_EXTENSIONS: &[&str] = &[".jpg", ".jpeg", ".png", ".bmp", ".heic", ".heif", ".exif"];
 
 pub fn classify_path(path: impl AsRef<Path>) -> MediaKind {
     let path_lower = path.as_ref().to_string_lossy().to_lowercase();

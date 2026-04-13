@@ -145,12 +145,7 @@ pub fn process_video(
             let args = build_ffmpeg_args(job);
             let ffmpeg_result = executor.run_ffmpeg(&args)?;
             if !ffmpeg_result.status.success() {
-                return Err(io::Error::other(format!(
-                    "ffmpeg failed (status: {:?})\nstdout:{}\nstderr:{}",
-                    ffmpeg_result.status,
-                    String::from_utf8_lossy(&ffmpeg_result.stdout),
-                    String::from_utf8_lossy(&ffmpeg_result.stderr)
-                )));
+                return Err(io::Error::other(format_ffmpeg_failure(&ffmpeg_result)));
             }
 
             let input_size = size_provider.size_of(&job.src_file)?;
@@ -167,6 +162,20 @@ pub fn process_video(
             }
         }
     }
+}
+
+fn format_ffmpeg_failure(result: &FfmpegRunOutput) -> String {
+    let stdout = String::from_utf8_lossy(&result.stdout);
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    let stdout = stdout.trim();
+    let stderr = stderr.trim();
+
+    format!(
+        "ffmpeg failed with status {:?}\n--- stdout ---\n{}\n--- stderr ---\n{}",
+        result.status,
+        if stdout.is_empty() { "<empty>" } else { stdout },
+        if stderr.is_empty() { "<empty>" } else { stderr }
+    )
 }
 
 /// Applies legacy `--replace` behavior as a separate post-processing step.
@@ -212,7 +221,9 @@ mod tests {
 
     impl FfmpegExecutor for MockExecutor {
         fn run_ffmpeg(&self, args: &[String]) -> io::Result<FfmpegRunOutput> {
-            let out_path = args.last().expect("expected output path as final ffmpeg arg");
+            let out_path = args
+                .last()
+                .expect("expected output path as final ffmpeg arg");
             fs::write(out_path, b"mock-encoded")?;
             Ok(FfmpegRunOutput {
                 status: success_status(),

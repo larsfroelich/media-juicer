@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use std::fs;
 use std::io;
+use std::io::BufReader;
 use std::path::Path;
 
 const LEGACY_MIN_YEAR: i32 = 1980;
@@ -43,20 +44,53 @@ impl TimestampProvider for FileSystemTimestampProvider {
     fn creation_timestamps(
         &self,
         path: &Path,
-        _media_kind: MediaKind,
+        media_kind: MediaKind,
     ) -> io::Result<CreationTimestamps> {
         let metadata = fs::metadata(path)?;
         let modified = metadata.modified()?;
         let metadata_ts = DateTime::<Utc>::from(modified);
+        let exif = match media_kind {
+            MediaKind::Image => read_exif_timestamp(path),
+            MediaKind::Video | MediaKind::Unknown => None,
+        };
 
         Ok(CreationTimestamps {
-            exif: None,
+            exif,
             metadata: Self::normalize_metadata_timestamp(metadata_ts),
         })
     }
 }
 
 use chrono::Datelike;
+
+fn read_exif_timestamp(path: &Path) -> Option<DateTime<Utc>> {
+    let ext = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if !matches!(
+        ext.as_str(),
+        "jpg" | "jpeg" | "png" | "bmp" | "heic" | "heif"
+    ) {
+        return None;
+    }
+
+    let file = fs::File::open(path).ok()?;
+    let mut reader = BufReader::new(file);
+    let exif_reader = exif::Reader::new().read_from_container(&mut reader).ok()?;
+
+    let exif_field = exif_reader
+        .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
+        .or_else(|| exif_reader.get_field(exif::Tag::DateTimeDigitized, exif::In::PRIMARY))
+        .or_else(|| exif_reader.get_field(exif::Tag::DateTime, exif::In::PRIMARY))?;
+
+    let raw = exif_field.display_value().to_string();
+    let naive = chrono::NaiveDateTime::parse_from_str(raw.trim(), "%Y-%m-%d %H:%M:%S")
+        .or_else(|_| chrono::NaiveDateTime::parse_from_str(raw.trim(), "%Y:%m:%d %H:%M:%S"))
+        .ok()?;
+    Some(DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+}
 
 #[cfg(test)]
 mod tests {
