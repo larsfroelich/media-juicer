@@ -1,3 +1,5 @@
+pub mod image_processing;
+
 /// Returns a short description of the crate's current focus.
 pub fn project_summary() -> &'static str {
     "media-juicer organizes and compresses media files."
