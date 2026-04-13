@@ -13,3 +13,4 @@ name = "media-juicer"
 path = "src/main.rs"
 
 [dependencies]
+filetime = "0.2"
