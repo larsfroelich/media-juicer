@@ -13,3 +13,7 @@ name = "media-juicer"
 path = "src/main.rs"
 
 [dependencies]
+chrono = { version = "0.4", features = ["clock"] }
+
+[dev-dependencies]
+filetime = "0.2"
