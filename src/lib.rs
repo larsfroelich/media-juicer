@@ -1,3 +1,5 @@
+pub mod video_processing;
+
 pub mod timestamp_policy;
 
 pub mod media_kind;
