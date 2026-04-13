@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
 use std::fs;
 use std::io;
-use std::io::BufReader;
 use std::path::Path;
 use std::process::Command;
+
+use crate::exif_dates;
 
 const LEGACY_MIN_YEAR: i32 = 1980;
 
@@ -114,32 +115,7 @@ fn parse_ffprobe_timestamp_line(raw: &str) -> Option<DateTime<Utc>> {
 }
 
 fn read_exif_timestamp(path: &Path) -> Option<DateTime<Utc>> {
-    let ext = path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-    if !matches!(
-        ext.as_str(),
-        "jpg" | "jpeg" | "png" | "bmp" | "heic" | "heif"
-    ) {
-        return None;
-    }
-
-    let file = fs::File::open(path).ok()?;
-    let mut reader = BufReader::new(file);
-    let exif_reader = exif::Reader::new().read_from_container(&mut reader).ok()?;
-
-    let exif_field = exif_reader
-        .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
-        .or_else(|| exif_reader.get_field(exif::Tag::DateTimeDigitized, exif::In::PRIMARY))
-        .or_else(|| exif_reader.get_field(exif::Tag::DateTime, exif::In::PRIMARY))?;
-
-    let raw = exif_field.display_value().to_string();
-    let naive = chrono::NaiveDateTime::parse_from_str(raw.trim(), "%Y-%m-%d %H:%M:%S")
-        .or_else(|_| chrono::NaiveDateTime::parse_from_str(raw.trim(), "%Y:%m:%d %H:%M:%S"))
-        .ok()?;
-    Some(DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+    exif_dates::read_exif_timestamp(path, Some(LEGACY_MIN_YEAR))
 }
 
 #[cfg(test)]
