@@ -1,79 +1,17 @@
+mod common;
+
 use chrono::Utc;
+use common::{MetadataSizeProvider, MockImageBackend, NoopFfmpegExecutor};
 use media_juicer::app::execute::{ExecutionError, execute_plan};
 use media_juicer::config::{MediaJuicerConfig, ProcessingMode};
-use media_juicer::image_processing::{BackendImage, ImageBackend, ImageProcessingError};
 use media_juicer::planning::build_processing_plan;
 use media_juicer::selection::Mode;
 use media_juicer::timestamps::{
     CreationTimestamps, MediaKind as TimestampMediaKind, TimestampProvider,
 };
-use media_juicer::video_processing::{FfmpegExecutor, FfmpegRunOutput, FileSizeProvider};
 use std::fs;
 use std::io;
 use std::path::Path;
-use std::process::ExitStatus;
-
-struct NoopImageBackend;
-
-impl ImageBackend for NoopImageBackend {
-    fn open(&self, _source_path: &Path) -> Result<BackendImage, ImageProcessingError> {
-        Ok(BackendImage::new(
-            image::DynamicImage::new_rgba8(1, 1),
-            None,
-        ))
-    }
-
-    fn resize(
-        &self,
-        _image: &mut BackendImage,
-        _max_pixels: u32,
-    ) -> Result<(), ImageProcessingError> {
-        Ok(())
-    }
-
-    fn save(
-        &self,
-        _image: &BackendImage,
-        temp_output_path: &Path,
-        _quality: u8,
-    ) -> Result<(), ImageProcessingError> {
-        fs::write(temp_output_path, b"unused")?;
-        Ok(())
-    }
-}
-
-struct NoopExecutor;
-
-impl FfmpegExecutor for NoopExecutor {
-    fn run_ffmpeg(&self, _args: &[String]) -> io::Result<FfmpegRunOutput> {
-        #[cfg(unix)]
-        {
-            use std::os::unix::process::ExitStatusExt;
-            Ok(FfmpegRunOutput {
-                status: ExitStatus::from_raw(0),
-                stdout: Vec::new(),
-                stderr: Vec::new(),
-            })
-        }
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::ExitStatusExt;
-            Ok(FfmpegRunOutput {
-                status: ExitStatus::from_raw(0),
-                stdout: Vec::new(),
-                stderr: Vec::new(),
-            })
-        }
-    }
-}
-
-struct MetadataSizeProvider;
-
-impl FileSizeProvider for MetadataSizeProvider {
-    fn size_of(&self, path: &Path) -> io::Result<u64> {
-        Ok(fs::metadata(path)?.len())
-    }
-}
 
 struct SelectiveTimestampProvider;
 
@@ -121,8 +59,8 @@ fn fixdates_aggregates_failures_for_mixed_media_and_reports_full_progress() {
     let result = execute_plan(
         &plan,
         &config,
-        &NoopImageBackend,
-        &NoopExecutor,
+        &MockImageBackend,
+        &NoopFfmpegExecutor,
         &MetadataSizeProvider,
         &SelectiveTimestampProvider,
         &mut stdout,
@@ -179,8 +117,8 @@ fn fixdates_ignore_timestamps_suppresses_timestamp_lookup_failures() {
     let summary = execute_plan(
         &plan,
         &config,
-        &NoopImageBackend,
-        &NoopExecutor,
+        &MockImageBackend,
+        &NoopFfmpegExecutor,
         &MetadataSizeProvider,
         &SelectiveTimestampProvider,
         &mut stdout,

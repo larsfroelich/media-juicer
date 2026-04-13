@@ -2,7 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::error::{MediaJuicerError, Result};
-use crate::fs_discovery::{list_files, list_folders, map_to_output_path};
+use crate::fs_discovery::{list_files, list_folders};
+use crate::list_files::map_to_output_path;
 use crate::media_kind::{MediaKind, classify_path};
 use crate::mk_folder_if_not_exist::ensure_folder_exists;
 use crate::selection::{

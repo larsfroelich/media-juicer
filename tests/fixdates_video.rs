@@ -1,77 +1,13 @@
+mod common;
+
 use chrono::TimeZone;
+use common::{ConstantSizeProvider, MockImageBackend, NoopFfmpegExecutor};
 use filetime::{FileTime, set_file_mtime};
 use media_juicer::app::execute::execute_plan;
 use media_juicer::config::{MediaJuicerConfig, ProcessingMode};
-use media_juicer::image_processing::{BackendImage, ImageBackend, ImageProcessingError};
 use media_juicer::media_kind::MediaKind;
 use media_juicer::planning::{PlannedFile, ProcessingPlan};
 use media_juicer::timestamps::FileSystemTimestampProvider;
-use media_juicer::video_processing::{FfmpegExecutor, FfmpegRunOutput, FileSizeProvider};
-use std::io;
-use std::path::Path;
-use std::process::ExitStatus;
-
-struct NoopImageBackend;
-
-impl ImageBackend for NoopImageBackend {
-    fn open(&self, _source_path: &Path) -> Result<BackendImage, ImageProcessingError> {
-        Ok(BackendImage::new(
-            image::DynamicImage::new_rgba8(1, 1),
-            None,
-        ))
-    }
-
-    fn resize(
-        &self,
-        _image: &mut BackendImage,
-        _max_pixels: u32,
-    ) -> Result<(), ImageProcessingError> {
-        Ok(())
-    }
-
-    fn save(
-        &self,
-        _image: &BackendImage,
-        temp_output_path: &Path,
-        _quality: u8,
-    ) -> Result<(), ImageProcessingError> {
-        std::fs::write(temp_output_path, b"ok")?;
-        Ok(())
-    }
-}
-
-struct NoopExecutor;
-
-impl FfmpegExecutor for NoopExecutor {
-    fn run_ffmpeg(&self, _args: &[String]) -> io::Result<FfmpegRunOutput> {
-        #[cfg(unix)]
-        {
-            use std::os::unix::process::ExitStatusExt;
-            Ok(FfmpegRunOutput {
-                status: ExitStatus::from_raw(0),
-                stdout: Vec::new(),
-                stderr: Vec::new(),
-            })
-        }
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::ExitStatusExt;
-            Ok(FfmpegRunOutput {
-                status: ExitStatus::from_raw(0),
-                stdout: Vec::new(),
-                stderr: Vec::new(),
-            })
-        }
-    }
-}
-
-struct NoopSizeProvider;
-
-impl FileSizeProvider for NoopSizeProvider {
-    fn size_of(&self, _path: &Path) -> io::Result<u64> {
-        Ok(1)
-    }
-}
 
 #[test]
 fn fixdates_video_succeeds_when_ffprobe_provides_embedded_creation_time() {
@@ -135,9 +71,9 @@ fn fixdates_video_succeeds_when_ffprobe_provides_embedded_creation_time() {
     let result = execute_plan(
         &plan,
         &config,
-        &NoopImageBackend,
-        &NoopExecutor,
-        &NoopSizeProvider,
+        &MockImageBackend,
+        &NoopFfmpegExecutor,
+        &ConstantSizeProvider { size: 1 },
         &FileSystemTimestampProvider,
         &mut out,
     );

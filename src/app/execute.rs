@@ -198,10 +198,9 @@ fn process_fix_dates<T: TimestampProvider>(
     config: &MediaJuicerConfig,
     timestamp_provider: &T,
 ) -> Result<(), String> {
-    let timestamps = match timestamp_provider.creation_timestamps(
-        &file.source_path,
-        timestamp_kind(file.media_kind),
-    ) {
+    let timestamps = match timestamp_provider
+        .creation_timestamps(&file.source_path, timestamp_kind(file.media_kind))
+    {
         Ok(timestamps) => timestamps,
         Err(_error) if config.ignore_timestamps.is_some() => return Ok(()),
         Err(error) => return Err(error.to_string()),

@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 use std::path::{Path, PathBuf};
 
 /// Recursively lists every file under `root`.
@@ -32,27 +32,6 @@ pub fn list_folders(root: &Path) -> Result<Vec<PathBuf>, Error> {
     Ok(folders)
 }
 
-/// Maps a source path rooted at `src_root` into `out_root`, preserving
-/// exactly the relative structure.
-pub fn map_to_output_path(
-    src_root: &Path,
-    out_root: &Path,
-    source_path: &Path,
-) -> Result<PathBuf, Error> {
-    let rel = source_path.strip_prefix(src_root).map_err(|err| {
-        Error::new(
-            ErrorKind::InvalidInput,
-            format!(
-                "source path '{}' is not under source root '{}': {err}",
-                source_path.display(),
-                src_root.display()
-            ),
-        )
-    })?;
-
-    Ok(out_root.join(rel))
-}
-
 fn visit_descendants(root: &Path, on_entry: &mut impl FnMut(&Path)) -> Result<(), Error> {
     let mut dirs = vec![root.to_path_buf()];
 
@@ -73,7 +52,7 @@ fn visit_descendants(root: &Path, on_entry: &mut impl FnMut(&Path)) -> Result<()
 
 #[cfg(test)]
 mod tests {
-    use super::{list_files, list_folders, map_to_output_path};
+    use super::{list_files, list_folders};
     use std::env;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -145,16 +124,5 @@ mod tests {
 
         let folders = list_folders(root).unwrap();
         assert_eq!(folders, vec![empty, nested_empty]);
-    }
-
-    #[test]
-    fn output_remap_preserves_relative_structure() {
-        let src_root = Path::new("/source");
-        let out_root = Path::new("/output");
-
-        let source_file = Path::new("/source/videos/2026/clip.mp4");
-        let mapped = map_to_output_path(src_root, out_root, source_file).unwrap();
-
-        assert_eq!(mapped, PathBuf::from("/output/videos/2026/clip.mp4"));
     }
 }
