@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
 use crate::external_apps;
+use filetime::{FileTime, set_file_mtime};
 
 /// Configuration for a single video compression job.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,9 +152,11 @@ pub fn process_video(
             if output_size > input_size {
                 fs::remove_file(&temp_path)?;
                 fs::copy(&job.src_file, &temp_path)?;
+                set_matching_mtime(&job.src_file, &temp_path)?;
                 fs::rename(&temp_path, &output_path)?;
                 Ok(ProcessOutcome::EncodedWithFallbackCopy)
             } else {
+                set_matching_mtime(&job.src_file, &temp_path)?;
                 fs::rename(&temp_path, &output_path)?;
                 Ok(ProcessOutcome::Encoded)
             }
@@ -192,8 +195,15 @@ pub fn apply_replace_input(src_file: &Path, output_path: &Path, replace: bool) -
         PathBuf::from(format!("{}.mp4", src_file.to_string_lossy()))
     };
 
-    fs::copy(output_path, replacement_target)?;
+    fs::copy(output_path, &replacement_target)?;
+    set_matching_mtime(output_path, &replacement_target)?;
     Ok(true)
+}
+
+fn set_matching_mtime(source: &Path, target: &Path) -> io::Result<()> {
+    let source_meta = fs::metadata(source)?;
+    let mtime = FileTime::from_last_modification_time(&source_meta);
+    set_file_mtime(target, mtime)
 }
 
 #[cfg(test)]
