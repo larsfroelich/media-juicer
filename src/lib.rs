@@ -1,5 +1,7 @@
 pub mod video_processing;
 
+pub mod external_apps;
+
 pub mod app;
 
 pub mod timestamp_policy;

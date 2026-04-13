@@ -4,6 +4,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
+use crate::external_apps;
+
 /// Configuration for a single video compression job.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VideoJob {
@@ -32,7 +34,9 @@ pub struct SystemFfmpegExecutor;
 
 impl FfmpegExecutor for SystemFfmpegExecutor {
     fn run_ffmpeg(&self, args: &[String]) -> io::Result<FfmpegRunOutput> {
-        let output = Command::new("ffmpeg").args(args).output()?;
+        let output = Command::new(external_apps::ffmpeg_binary())
+            .args(args)
+            .output()?;
         Ok(FfmpegRunOutput {
             status: output.status,
             stdout: output.stdout,

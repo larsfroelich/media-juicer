@@ -5,6 +5,7 @@ use std::path::Path;
 use std::process::Command;
 
 use crate::exif_dates;
+use crate::external_apps;
 
 const LEGACY_MIN_YEAR: i32 = 1980;
 
@@ -66,14 +67,8 @@ impl TimestampProvider for FileSystemTimestampProvider {
 
 use chrono::Datelike;
 
-const FFPROBE_BIN_ENV: &str = "MEDIA_JUICER_FFPROBE";
-
-fn ffprobe_binary() -> std::ffi::OsString {
-    std::env::var_os(FFPROBE_BIN_ENV).unwrap_or_else(|| "ffprobe".into())
-}
-
 fn read_video_timestamp(path: &Path) -> Option<DateTime<Utc>> {
-    let output = Command::new(ffprobe_binary())
+    let output = Command::new(external_apps::ffprobe_binary())
         .arg("-v")
         .arg("error")
         .arg("-show_entries")

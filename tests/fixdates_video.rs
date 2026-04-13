@@ -21,7 +21,11 @@ impl ImageBackend for NoopImageBackend {
         ))
     }
 
-    fn resize(&self, _image: &mut BackendImage, _max_pixels: u32) -> Result<(), ImageProcessingError> {
+    fn resize(
+        &self,
+        _image: &mut BackendImage,
+        _max_pixels: u32,
+    ) -> Result<(), ImageProcessingError> {
         Ok(())
     }
 
@@ -99,7 +103,10 @@ fn fixdates_video_succeeds_when_ffprobe_provides_embedded_creation_time() {
         .expect("valid timestamp");
     set_file_mtime(
         &source,
-        FileTime::from_unix_time(target_mtime.timestamp(), target_mtime.timestamp_subsec_nanos()),
+        FileTime::from_unix_time(
+            target_mtime.timestamp(),
+            target_mtime.timestamp_subsec_nanos(),
+        ),
     )
     .expect("mtime should be writable");
 
@@ -138,5 +145,8 @@ fn fixdates_video_succeeds_when_ffprobe_provides_embedded_creation_time() {
     unsafe {
         std::env::remove_var("MEDIA_JUICER_FFPROBE");
     }
-    assert!(result.is_ok(), "fixdates should succeed when video timestamp exists");
+    assert!(
+        result.is_ok(),
+        "fixdates should succeed when video timestamp exists"
+    );
 }
