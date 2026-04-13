@@ -20,6 +20,8 @@ pub mod mk_folder_if_not_exist;
 
 pub use error::{MediaJuicerError, Result};
 
+pub mod timestamps;
+
 /// Returns a short description of the crate's current focus.
 pub fn project_summary() -> &'static str {
     "media-juicer organizes and compresses media files."
