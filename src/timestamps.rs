@@ -3,6 +3,7 @@ use std::fs;
 use std::io;
 use std::io::BufReader;
 use std::path::Path;
+use std::process::Command;
 
 const LEGACY_MIN_YEAR: i32 = 1980;
 
@@ -51,7 +52,8 @@ impl TimestampProvider for FileSystemTimestampProvider {
         let metadata_ts = DateTime::<Utc>::from(modified);
         let exif = match media_kind {
             MediaKind::Image => read_exif_timestamp(path),
-            MediaKind::Video | MediaKind::Unknown => None,
+            MediaKind::Video => read_video_timestamp(path),
+            MediaKind::Unknown => None,
         };
 
         Ok(CreationTimestamps {
@@ -62,6 +64,54 @@ impl TimestampProvider for FileSystemTimestampProvider {
 }
 
 use chrono::Datelike;
+
+const FFPROBE_BIN_ENV: &str = "MEDIA_JUICER_FFPROBE";
+
+fn ffprobe_binary() -> std::ffi::OsString {
+    std::env::var_os(FFPROBE_BIN_ENV).unwrap_or_else(|| "ffprobe".into())
+}
+
+fn read_video_timestamp(path: &Path) -> Option<DateTime<Utc>> {
+    let output = Command::new(ffprobe_binary())
+        .arg("-v")
+        .arg("error")
+        .arg("-show_entries")
+        .arg("format_tags=creation_time:stream_tags=creation_time")
+        .arg("-of")
+        .arg("default=noprint_wrappers=1:nokey=1")
+        .arg(path)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    parse_ffprobe_creation_time_output(&output.stdout)
+}
+
+fn parse_ffprobe_creation_time_output(stdout: &[u8]) -> Option<DateTime<Utc>> {
+    let output = std::str::from_utf8(stdout).ok()?;
+    output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .find_map(parse_ffprobe_timestamp_line)
+}
+
+fn parse_ffprobe_timestamp_line(raw: &str) -> Option<DateTime<Utc>> {
+    if let Ok(parsed) = DateTime::parse_from_rfc3339(raw) {
+        let utc = parsed.with_timezone(&Utc);
+        return (utc.year() >= LEGACY_MIN_YEAR).then_some(utc);
+    }
+
+    let naive = chrono::NaiveDateTime::parse_from_str(raw, "%Y-%m-%d %H:%M:%S")
+        .or_else(|_| chrono::NaiveDateTime::parse_from_str(raw, "%Y-%m-%dT%H:%M:%S"))
+        .ok()?;
+
+    let utc = DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc);
+    (utc.year() >= LEGACY_MIN_YEAR).then_some(utc)
+}
 
 fn read_exif_timestamp(path: &Path) -> Option<DateTime<Utc>> {
     let ext = path
@@ -94,7 +144,10 @@ fn read_exif_timestamp(path: &Path) -> Option<DateTime<Utc>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{CreationTimestamps, FileSystemTimestampProvider, MediaKind, TimestampProvider};
+    use super::{
+        CreationTimestamps, FileSystemTimestampProvider, MediaKind, TimestampProvider,
+        parse_ffprobe_creation_time_output,
+    };
     use chrono::{Datelike, TimeZone, Utc};
     use filetime::{FileTime, set_file_mtime};
     use std::fs::File;
@@ -199,5 +252,30 @@ mod tests {
 
         std::fs::remove_file(path)?;
         Ok(())
+    }
+
+    #[test]
+    fn parses_video_embedded_creation_time_from_ffprobe_output() {
+        let output = b"2024-07-08T09:10:11.000000Z\n";
+        let parsed = parse_ffprobe_creation_time_output(output);
+        let expected = Utc
+            .with_ymd_and_hms(2024, 7, 8, 9, 10, 11)
+            .single()
+            .expect("valid datetime");
+        assert_eq!(parsed, Some(expected));
+    }
+
+    #[test]
+    fn video_ffprobe_output_without_creation_time_returns_none() {
+        let output = b"\n\n";
+        let parsed = parse_ffprobe_creation_time_output(output);
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn malformed_video_timestamp_output_is_ignored_without_panicking() {
+        let output = b"not-a-timestamp\nstill-not-one\n";
+        let parsed = parse_ffprobe_creation_time_output(output);
+        assert_eq!(parsed, None);
     }
 }
