@@ -822,6 +822,7 @@ dependencies = [
  "filetime",
  "image",
  "kamadak-exif",
+ "libwebp-sys",
  "predicates",
  "tempfile",
  "webp",

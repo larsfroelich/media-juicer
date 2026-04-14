@@ -6,7 +6,8 @@ use std::time::{Duration, SystemTime};
 use filetime::{FileTime, set_file_mtime};
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView};
-
+use webp::WebPConfig;
+use crate::config::FfmpegPreset;
 use crate::exif_dates;
 
 const TIMESTAMP_MISMATCH_THRESHOLD: Duration = Duration::from_secs(24 * 60 * 60);
@@ -89,11 +90,22 @@ impl ImageBackend for SystemImageBackend {
     ) -> Result<(), ImageProcessingError> {
         let rgba = image.decoded.to_rgba8();
         let encoder = webp::Encoder::from_rgba(rgba.as_raw(), rgba.width(), rgba.height());
-        let encoded = encoder.encode(quality as f32);
+        let config = webp_config_for_quality(quality).map_err(|error| {
+            ImageProcessingError::Backend(format!("failed to build webp config: {error}"))
+        })?;
+        let encoded = encoder.encode_advanced(&config).map_err(|error| {
+            ImageProcessingError::Backend(format!("failed to encode image: {error:?}"))
+        })?;
         let encoded_bytes: &[u8] = encoded.as_ref();
         fs::write(temp_output_path, encoded_bytes)?;
         Ok(())
     }
+}
+
+fn webp_config_for_quality(quality: u8) -> Result<WebPConfig, String> {
+    let mut config = WebPConfig::new_with_preset(libwebp_sys::WebPPreset::WEBP_PRESET_PHOTO, quality.into()).map_err(|error| format!("{error:?}"))?;
+    config.method = 6;
+    Ok(config)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -369,5 +381,21 @@ mod tests {
         assert_eq!(outcome, ProcessOutcome::Processed);
         assert!(resolve_webp_output_path(&output_path).exists());
         assert_eq!(state.borrow().save_calls, 1);
+    }
+
+    #[test]
+    fn webp_config_uses_max_effort() {
+        let config = webp_config_for_quality(85).expect("config");
+        assert_eq!(config.method, 6);
+        assert_eq!(config.near_lossless, 100);
+        assert_eq!(config.quality, 85.0);
+    }
+
+    #[test]
+    fn webp_config_enables_near_lossless_below_threshold() {
+        let config = webp_config_for_quality(74).expect("config");
+        assert_eq!(config.method, 6);
+        assert_eq!(config.near_lossless, 74);
+        assert_eq!(config.quality, 74.0);
     }
 }

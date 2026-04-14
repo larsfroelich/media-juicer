@@ -19,6 +19,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 image = { version = "0.25", default-features = true, features = ["jpeg", "png", "bmp", "webp"] }
 kamadak-exif = "0.6"
 webp = "0.3"
+libwebp-sys = "0.9.6"
 
 [dev-dependencies]
 tempfile = "3"
