@@ -90,7 +90,8 @@ impl ImageBackend for SystemImageBackend {
         let rgba = image.decoded.to_rgba8();
         let encoder = webp::Encoder::from_rgba(rgba.as_raw(), rgba.width(), rgba.height());
         let encoded = encoder.encode(quality as f32);
-        fs::write(temp_output_path, encoded.as_ref())?;
+        let encoded_bytes: &[u8] = encoded.as_ref();
+        fs::write(temp_output_path, encoded_bytes)?;
         Ok(())
     }
 }

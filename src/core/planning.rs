@@ -32,13 +32,13 @@ pub fn build_processing_plan(
     mode: ProcessingMode,
     only_suffix: Option<&str>,
 ) -> Result<ProcessingPlan> {
-    let out_folder_path = if mode == Mode::Fixdates {
+    let out_folder_path = if mode == ProcessingMode::FixDates {
         source_root.to_path_buf()
     } else {
         out_folder_for_source(source_root)?
     };
 
-    if mode != Mode::Fixdates {
+    if mode != ProcessingMode::FixDates {
         ensure_folder_exists(&out_folder_path)?;
 
         for src_folder in list_folders(source_root)? {
@@ -198,7 +198,7 @@ mod tests {
         fs::create_dir_all(&source_root).unwrap();
         fs::write(source_root.join("clip.mp4"), b"video").unwrap();
 
-        let plan = build_processing_plan(&source_root, Mode::Fixdates, None).unwrap();
+        let plan = build_processing_plan(&source_root, ProcessingMode::FixDates, None).unwrap();
 
         assert_eq!(plan.out_folder_path, source_root);
         assert!(!tmp.path().join("source_compressed").is_dir());
@@ -211,7 +211,7 @@ mod tests {
         fs::create_dir_all(source_root.join("nested")).unwrap();
         fs::write(source_root.join("nested/photo.jpg"), vec![0_u8; 10]).unwrap();
 
-        let plan = build_processing_plan(&source_root, Mode::Fixdates, None).unwrap();
+        let plan = build_processing_plan(&source_root, ProcessingMode::FixDates, None).unwrap();
 
         assert_eq!(plan.files.len(), 1);
         assert!(!plan.out_folder_path.exists());
@@ -220,7 +220,11 @@ mod tests {
 
     #[test]
     fn image_video_and_all_modes_still_create_output_tree() {
-        let modes = [Mode::Images, Mode::Videos, Mode::All];
+        let modes = [
+            ProcessingMode::Images,
+            ProcessingMode::Videos,
+            ProcessingMode::All,
+        ];
 
         for mode in modes {
             let tmp = TempDir::new("planning-mode-output-tree");

@@ -4,7 +4,6 @@ use common::{MetadataSizeProvider, MockImageBackend, NoopFfmpegExecutor, NoopTim
 use media_juicer::app::execute::execute_plan;
 use media_juicer::config::{MediaJuicerConfig, ProcessingMode};
 use media_juicer::planning::build_processing_plan;
-use media_juicer::selection::Mode;
 use std::fs;
 
 #[test]
@@ -14,12 +13,12 @@ fn fixdates_run_leaves_no_output_tree() {
     fs::create_dir_all(source_root.join("nested")).expect("nested dir");
     fs::write(source_root.join("nested/photo.jpg"), b"image").expect("image file");
 
-    let plan = build_processing_plan(&source_root, Mode::Fixdates, None).expect("plan");
+    let plan = build_processing_plan(&source_root, ProcessingMode::FixDates, None).expect("plan");
     assert!(!plan.out_folder_path.exists());
 
     let config = MediaJuicerConfig {
         mode: ProcessingMode::FixDates,
-        ignore_timestamps: Some("true".to_string()),
+        ignore_timestamps: true,
         ..MediaJuicerConfig::default()
     };
 
