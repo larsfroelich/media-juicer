@@ -8,15 +8,34 @@ pub enum ClassifiedFile {
     Other,
 }
 
-pub fn filter_by_only(files: &[PathBuf], only_suffix: Option<&str>) -> Vec<PathBuf> {
-    match only_suffix {
-        Some(suffix) => files
-            .iter()
-            .filter(|path| path.to_string_lossy().ends_with(suffix))
-            .cloned()
-            .collect(),
-        None => files.to_vec(),
-    }
+pub fn filter_by_only(files: &[PathBuf], only_filter: Option<&str>) -> Vec<PathBuf> {
+    let Some(filter) = only_filter.map(str::trim).filter(|raw| !raw.is_empty()) else {
+        return files.to_vec();
+    };
+
+    let normalized_filter = filter.to_ascii_lowercase();
+    let requires_full_path_matching = filter.contains('/') || filter.contains('\\');
+    let is_suffix_filter = !requires_full_path_matching && filter.starts_with('.');
+
+    files
+        .iter()
+        .filter(|path| {
+            let candidate = if requires_full_path_matching {
+                path.to_string_lossy()
+            } else {
+                path.file_name()
+                    .map_or_else(|| path.to_string_lossy(), |name| name.to_string_lossy())
+            };
+
+            let normalized_candidate = candidate.to_ascii_lowercase();
+            if is_suffix_filter {
+                normalized_candidate.ends_with(&normalized_filter)
+            } else {
+                normalized_candidate == normalized_filter
+            }
+        })
+        .cloned()
+        .collect()
 }
 
 pub fn select_files_for_mode<F>(
@@ -61,8 +80,10 @@ mod tests {
         vec![
             PathBuf::from("/media/photo.jpg"),
             PathBuf::from("/media/clip.mp4"),
-            PathBuf::from("/media/notes.txt"),
             PathBuf::from("/media/sub/another.png"),
+            PathBuf::from("/media/sub/clip.mp4"),
+            PathBuf::from("/media/sub/mixed-case-image.JpG"),
+            PathBuf::from("/media/notes.txt"),
         ]
     }
 
@@ -75,14 +96,45 @@ mod tests {
     }
 
     #[test]
-    fn filter_by_only_matches_legacy_suffix_behavior() {
+    fn filter_by_only_defaults_to_exact_filename_case_insensitive_matching() {
         let files = demo_files();
 
         let all_files = filter_by_only(&files, None);
         assert_eq!(all_files, files);
 
-        let filtered = filter_by_only(&files, Some("clip.mp4"));
-        assert_eq!(filtered, vec![PathBuf::from("/media/clip.mp4")]);
+        let exact_name = filter_by_only(&files, Some("CLIP.MP4"));
+        assert_eq!(
+            exact_name,
+            vec![
+                PathBuf::from("/media/clip.mp4"),
+                PathBuf::from("/media/sub/clip.mp4"),
+            ]
+        );
+    }
+
+    #[test]
+    fn filter_by_only_can_match_suffixes_when_filter_starts_with_dot() {
+        let files = demo_files();
+
+        let by_suffix = filter_by_only(&files, Some(".jpg"));
+        assert_eq!(
+            by_suffix,
+            vec![
+                PathBuf::from("/media/photo.jpg"),
+                PathBuf::from("/media/sub/mixed-case-image.JpG"),
+            ]
+        );
+    }
+
+    #[test]
+    fn filter_by_only_matches_full_path_when_filter_contains_separator() {
+        let files = demo_files();
+
+        let full_path = filter_by_only(&files, Some("/MEDIA/SUB/CLIP.MP4"));
+        assert_eq!(full_path, vec![PathBuf::from("/media/sub/clip.mp4")]);
+
+        let partial_path = filter_by_only(&files, Some("sub/clip.mp4"));
+        assert!(partial_path.is_empty());
     }
 
     #[test]
@@ -96,6 +148,7 @@ mod tests {
             PathBuf::from("/media/photo.jpg"),
             PathBuf::from("/media/clip.mp4"),
             PathBuf::from("/media/sub/another.png"),
+            PathBuf::from("/media/sub/clip.mp4"),
         ];
 
         assert_eq!(all_selected, expected);
@@ -107,14 +160,20 @@ mod tests {
         let files = demo_files();
 
         let videos = select_files_for_mode(&files, ProcessingMode::Videos, classifier);
-        assert_eq!(videos, vec![PathBuf::from("/media/clip.mp4")]);
+        assert_eq!(
+            videos,
+            vec![
+                PathBuf::from("/media/clip.mp4"),
+                PathBuf::from("/media/sub/clip.mp4"),
+            ]
+        );
 
         let images = select_files_for_mode(&files, ProcessingMode::Images, classifier);
         assert_eq!(
             images,
             vec![
                 PathBuf::from("/media/photo.jpg"),
-                PathBuf::from("/media/sub/another.png")
+                PathBuf::from("/media/sub/another.png"),
             ]
         );
     }

@@ -22,6 +22,20 @@ cargo run
 
 `.heic`/`.heif` are currently not supported as image inputs.
 
+
+## `--only` filtering semantics
+
+`--only` is applied during file selection with predictable matching rules:
+
+- **Default (no path separator, no leading dot):** case-insensitive **exact filename** match.
+  - Example: `--only clip.mp4` matches `.../clip.mp4` in any folder, but does not match `my-clip.mp4`.
+- **Suffix mode (value starts with `.`):** case-insensitive filename suffix match.
+  - Example: `--only .jpg` matches `photo.jpg` and `MIXED.JpG`.
+- **Full-path mode (value contains `/` or `\`):** case-insensitive **exact full-path** match.
+  - Example: `--only /media/sub/clip.mp4` only matches that full path.
+
+These rules keep `--only` behavior aligned with media extension handling, which is already case-insensitive.
+
 ## Codex setup
 
 Run the setup script once per development environment (safe to re-run):

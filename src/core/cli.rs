@@ -53,7 +53,7 @@ fn command() -> clap::Command {
             clap::Arg::new("only")
                 .long("only")
                 .value_name("FILENAME")
-                .help("Only process files ending with this suffix"),
+                .help("Filter files by --only: exact filename (case-insensitive), suffix when value starts with '.', or full path when value contains '/' or '\\'"),
         )
         .arg(
             clap::Arg::new("ignore_timestamps")
