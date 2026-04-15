@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::Error;
 use std::path::{Path, PathBuf};
+use std::{collections::HashSet, io::ErrorKind};
 
 /// Recursively lists every file under `root`.
 ///
@@ -34,6 +35,8 @@ pub fn list_folders(root: &Path) -> Result<Vec<PathBuf>, Error> {
 
 fn visit_descendants(root: &Path, on_entry: &mut impl FnMut(&Path)) -> Result<(), Error> {
     let mut dirs = vec![root.to_path_buf()];
+    let mut visited_dirs = HashSet::new();
+    visited_dirs.insert(fs::canonicalize(root)?);
 
     while let Some(dir) = dirs.pop() {
         for entry in fs::read_dir(&dir)? {
@@ -42,7 +45,17 @@ fn visit_descendants(root: &Path, on_entry: &mut impl FnMut(&Path)) -> Result<()
             on_entry(&path);
 
             if path.is_dir() {
-                dirs.push(path);
+                // Symlink policy: follow directory symlinks only if they resolve to
+                // a canonical directory target that has not been visited yet.
+                let canonical = match fs::canonicalize(&path) {
+                    Ok(canonical) => canonical,
+                    Err(err) if err.kind() == ErrorKind::NotFound => continue,
+                    Err(err) => return Err(err),
+                };
+
+                if visited_dirs.insert(canonical.clone()) {
+                    dirs.push(canonical);
+                }
             }
         }
     }
@@ -124,5 +137,73 @@ mod tests {
 
         let folders = list_folders(root).unwrap();
         assert_eq!(folders, vec![empty, nested_empty]);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn follows_symlink_dirs_once_without_loops() {
+        use std::os::unix::fs::symlink;
+
+        let tmp = TempDir::new("fs-discovery-symlink-loop-unix");
+        let root = tmp.path();
+
+        let dir_a = root.join("a");
+        let dir_b = dir_a.join("b");
+        fs::create_dir_all(&dir_b).unwrap();
+
+        let file = dir_b.join("file.txt");
+        fs::write(&file, b"hello").unwrap();
+
+        let loop_link = dir_b.join("back-to-a");
+        symlink(&dir_a, &loop_link).unwrap();
+
+        let alias = root.join("alias-a");
+        symlink(&dir_a, &alias).unwrap();
+
+        let files = list_files(root).unwrap();
+        assert_eq!(files, vec![file.clone()]);
+
+        let folders = list_folders(root).unwrap();
+        assert_eq!(folders, vec![dir_a, dir_b, loop_link, alias]);
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn follows_symlink_dirs_once_without_loops() {
+        use std::os::windows::fs::symlink_dir;
+
+        let tmp = TempDir::new("fs-discovery-symlink-loop-windows");
+        let root = tmp.path();
+
+        let dir_a = root.join("a");
+        let dir_b = dir_a.join("b");
+        fs::create_dir_all(&dir_b).unwrap();
+
+        let file = dir_b.join("file.txt");
+        fs::write(&file, b"hello").unwrap();
+
+        let loop_link = dir_b.join("back-to-a");
+        if let Err(err) = symlink_dir(&dir_a, &loop_link) {
+            if err.kind() == std::io::ErrorKind::PermissionDenied {
+                eprintln!("Skipping test: creating directory symlink requires privileges.");
+                return;
+            }
+            panic!("failed to create loop symlink: {err}");
+        }
+
+        let alias = root.join("alias-a");
+        if let Err(err) = symlink_dir(&dir_a, &alias) {
+            if err.kind() == std::io::ErrorKind::PermissionDenied {
+                eprintln!("Skipping test: creating directory symlink requires privileges.");
+                return;
+            }
+            panic!("failed to create alias symlink: {err}");
+        }
+
+        let files = list_files(root).unwrap();
+        assert_eq!(files, vec![file.clone()]);
+
+        let folders = list_folders(root).unwrap();
+        assert_eq!(folders, vec![dir_a, dir_b, loop_link, alias]);
     }
 }
