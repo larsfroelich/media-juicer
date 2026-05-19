@@ -3,12 +3,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
+use crate::exif_dates;
 use filetime::{FileTime, set_file_mtime};
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView};
 use webp::WebPConfig;
-use crate::config::FfmpegPreset;
-use crate::exif_dates;
 
 const TIMESTAMP_MISMATCH_THRESHOLD: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -103,7 +102,9 @@ impl ImageBackend for SystemImageBackend {
 }
 
 fn webp_config_for_quality(quality: u8) -> Result<WebPConfig, String> {
-    let mut config = WebPConfig::new_with_preset(libwebp_sys::WebPPreset::WEBP_PRESET_PHOTO, quality.into()).map_err(|error| format!("{error:?}"))?;
+    let mut config =
+        WebPConfig::new_with_preset(libwebp_sys::WebPPreset::WEBP_PRESET_PHOTO, quality.into())
+            .map_err(|error| format!("{error:?}"))?;
     config.method = 6;
     Ok(config)
 }
