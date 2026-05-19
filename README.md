@@ -1,7 +1,14 @@
 # media-juicer
 
 `media-juicer` is a small Rust CLI project for organizing and compressing media files.
-The current setup is intentionally minimal: one crate with a library used by the binary.
+
+## Installation
+
+To install `media-juicer`, run the following command:
+
+```bash
+cargo install --git https://github.com/larsfroelich/media-juicer
+```
 
 ## Structure
 
@@ -34,39 +41,33 @@ cargo run
 - **Full-path mode (value contains `/` or `\`):** case-insensitive **exact full-path** match.
   - Example: `--only /media/sub/clip.mp4` only matches that full path.
 
-These rules keep `--only` behavior aligned with media extension handling, which is already case-insensitive.
-
-## Codex setup
+## Development Setup
 
 Run the setup script once per development environment (safe to re-run):
 
 ```bash
-scripts/setup-rust-codex.sh
+scripts/setup.sh
 ```
 
 This script validates required tooling, ensures the pinned Rust toolchain from
 `rust-toolchain.toml`, installs `rustfmt` and `clippy`, runs `cargo fetch --locked`,
-and exports Codex-friendly defaults for the current shell:
+and exports environment defaults for the current shell:
 
 - `CARGO_TERM_COLOR=always`
 - `RUST_BACKTRACE=1`
-- `CARGO_INCREMENTAL=0` (optional deterministic CI-like behavior)
+- `CARGO_INCREMENTAL=0`
 
 After setup, suggested next commands are:
 
-- `scripts/maintain-rust-codex.sh`
+- `scripts/maintain.sh`
 - `cargo run`
-
 
 For maintenance loops and pre-PR validation:
 
 ```bash
-# Fast checks for iterative local/Codex edits
-./scripts/maintain-rust-codex-fast.sh
+# Fast checks for iterative local edits
+./scripts/maintain-fast.sh
 
 # Full checks before opening a PR
-./scripts/maintain-rust-codex.sh
+./scripts/maintain.sh
 ```
-
-Use `maintain-rust-codex-fast.sh` while iterating on code when you want quick feedback.
-Run `maintain-rust-codex.sh` before creating a PR for comprehensive validation.

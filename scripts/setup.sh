@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Codex-friendly Rust setup script.
+# Rust setup script.
 # - Ensures required tools are installed.
 # - Pins and activates the repository Rust toolchain.
 # - Installs rustfmt/clippy components used in maintenance workflows.
@@ -53,7 +53,7 @@ rustup component add rustfmt clippy
 echo "Priming cargo cache and lockfile dependencies..."
 cargo fetch --locked
 
-# Export defaults for Codex sessions.
+# Export defaults for development sessions.
 # - CARGO_TERM_COLOR=always keeps command output readable in logs.
 # - RUST_BACKTRACE=1 enables actionable stack traces on failures.
 # - CARGO_INCREMENTAL=0 (optional) biases toward deterministic CI-like checks.
@@ -62,11 +62,11 @@ export RUST_BACKTRACE=1
 export CARGO_INCREMENTAL=0
 
 echo
-echo "Codex-friendly environment defaults (exported for this shell):"
+echo "Environment defaults (exported for this shell):"
 echo "  export CARGO_TERM_COLOR=${CARGO_TERM_COLOR}"
 echo "  export RUST_BACKTRACE=${RUST_BACKTRACE}"
 echo "  export CARGO_INCREMENTAL=${CARGO_INCREMENTAL}"
 echo
 echo "Next commands:"
-echo "  scripts/maintain-rust-codex.sh"
+echo "  scripts/maintain.sh"
 echo "  cargo run"

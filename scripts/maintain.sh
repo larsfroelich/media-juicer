@@ -16,7 +16,7 @@ done
 
 print_summary() {
   echo
-  echo "=== Codex Rust quality gate summary ==="
+  echo "=== Rust quality gate summary ==="
   printf 'PASS/FAIL by step:\n'
   for step in "${steps[@]}"; do
     printf ' - %-7s %s\n' "$step:" "${status[$step]}"
