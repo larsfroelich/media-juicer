@@ -56,6 +56,8 @@ fn replace_off_keeps_existing_output_and_source() {
         &MetadataSizeProvider,
         &NoopTimestampProvider,
         &mut stdout,
+        None,
+        None,
     )
     .expect("execution should succeed");
 
@@ -90,6 +92,8 @@ fn replace_on_uses_existing_output_and_replaces_non_mp4_source_with_mp4_copy() {
         &MetadataSizeProvider,
         &NoopTimestampProvider,
         &mut stdout,
+        None,
+        None,
     )
     .expect("execution should succeed");
 
@@ -132,6 +136,8 @@ fn non_mp4_output_path_is_encoded_to_mp4_target() {
         &MetadataSizeProvider,
         &NoopTimestampProvider,
         &mut stdout,
+        None,
+        None,
     )
     .expect("execution should succeed");
 

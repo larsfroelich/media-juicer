@@ -153,6 +153,8 @@ fn execute_plan_preserves_video_mtime_for_encode_fallback_and_replace_paths() {
         },
         &NoopTimestampProvider,
         &mut encode_stdout,
+        None,
+        None,
     )
     .expect("encode should succeed");
     assert!(encode_summary.failures.is_empty());
@@ -181,6 +183,8 @@ fn execute_plan_preserves_video_mtime_for_encode_fallback_and_replace_paths() {
         },
         &NoopTimestampProvider,
         &mut fallback_stdout,
+        None,
+        None,
     )
     .expect("fallback should succeed");
     assert!(fallback_summary.failures.is_empty());
@@ -209,6 +213,8 @@ fn execute_plan_preserves_video_mtime_for_encode_fallback_and_replace_paths() {
         },
         &NoopTimestampProvider,
         &mut replace_stdout,
+        None,
+        None,
     )
     .expect("replace should succeed");
     assert!(replace_summary.failures.is_empty());

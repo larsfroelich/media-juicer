@@ -63,6 +63,8 @@ fn fixdates_aggregates_failures_for_mixed_media_and_reports_full_progress() {
         &MetadataSizeProvider,
         &SelectiveTimestampProvider,
         &mut stdout,
+        None,
+        None,
     );
 
     let ExecutionError::FileFailures(summary) = result.expect_err("should aggregate failures")
@@ -121,6 +123,8 @@ fn fixdates_ignore_timestamps_suppresses_timestamp_lookup_failures() {
         &MetadataSizeProvider,
         &SelectiveTimestampProvider,
         &mut stdout,
+        None,
+        None,
     )
     .expect("ignore-timestamps should suppress fixdate failures");
 

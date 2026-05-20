@@ -31,6 +31,8 @@ fn fixdates_run_leaves_no_output_tree() {
         &MetadataSizeProvider,
         &NoopTimestampProvider,
         &mut stdout,
+        None,
+        None,
     )
     .expect("fixdates execution");
 

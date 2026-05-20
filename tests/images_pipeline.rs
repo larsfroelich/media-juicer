@@ -39,6 +39,8 @@ fn images_pipeline_builds_plan_and_executes_with_mock_backend() {
         &MetadataSizeProvider,
         &NoopTimestampProvider,
         &mut stdout,
+        None,
+        None,
     )
     .expect("image execution should succeed");
 

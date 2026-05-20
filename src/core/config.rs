@@ -112,6 +112,7 @@ pub struct MediaJuicerConfig {
     pub video_max_pixels: i32,
     pub webpq: i32,
     pub image_max_pixels: i32,
+    pub gui: bool,
 }
 
 impl Default for MediaJuicerConfig {
@@ -128,6 +129,7 @@ impl Default for MediaJuicerConfig {
             video_max_pixels: 0,
             webpq: 45,
             image_max_pixels: 1600,
+            gui: false,
         }
     }
 }

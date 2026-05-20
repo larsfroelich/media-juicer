@@ -1,6 +1,8 @@
 use std::fmt::{Display, Formatter};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::SystemTime;
 
 use crate::config::{MediaJuicerConfig, ProcessingMode};
@@ -30,6 +32,7 @@ pub struct ExecutionSummary {
 pub enum ExecutionError {
     FileFailures(ExecutionSummary),
     ReportIo(String),
+    Cancelled(ExecutionSummary),
 }
 
 impl Display for ExecutionError {
@@ -43,12 +46,14 @@ impl Display for ExecutionError {
                 )
             }
             Self::ReportIo(error) => write!(f, "failed to write execution report: {error}"),
+            Self::Cancelled(_) => write!(f, "execution was cancelled"),
         }
     }
 }
 
 impl std::error::Error for ExecutionError {}
 
+#[allow(clippy::too_many_arguments)]
 pub fn execute_plan<B: ImageBackend, T: TimestampProvider>(
     plan: &ProcessingPlan,
     config: &MediaJuicerConfig,
@@ -57,6 +62,8 @@ pub fn execute_plan<B: ImageBackend, T: TimestampProvider>(
     file_size_provider: &dyn FileSizeProvider,
     timestamp_provider: &T,
     out: &mut dyn Write,
+    cancel: Option<Arc<AtomicBool>>,
+    mut progress_callback: Option<&mut dyn FnMut(ProgressSnapshot)>,
 ) -> Result<ExecutionSummary, ExecutionError> {
     let selected_files: Vec<&PlannedFile> = plan
         .files
@@ -70,6 +77,13 @@ pub fn execute_plan<B: ImageBackend, T: TimestampProvider>(
     let mut failures = Vec::new();
 
     for file in &plan.files {
+        if cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed)) {
+            return Err(ExecutionError::Cancelled(ExecutionSummary {
+                progress: progress.snapshot(),
+                failures,
+            }));
+        }
+
         if !is_handled_by_mode(config.mode, file.media_kind) {
             continue;
         }
@@ -89,6 +103,10 @@ pub fn execute_plan<B: ImageBackend, T: TimestampProvider>(
         }
 
         progress.record_processed(file.size_bytes);
+        let snapshot = progress.snapshot();
+        if let Some(ref mut cb) = progress_callback {
+            cb(snapshot);
+        }
         writeln!(out, "{}", progress.summary_string())
             .map_err(|err| ExecutionError::ReportIo(err.to_string()))?;
     }
@@ -356,6 +374,7 @@ mod tests {
             video_max_pixels: 0,
             webpq: 45,
             image_max_pixels: 1600,
+            gui: false,
         }
     }
 
@@ -386,6 +405,8 @@ mod tests {
             &SizeProvider,
             &StaticTimestampProvider,
             &mut out,
+            None,
+            None,
         )
         .unwrap();
 
@@ -431,6 +452,8 @@ mod tests {
             &SizeProvider,
             &FailingTimestampProvider,
             &mut out,
+            None,
+            None,
         );
 
         let ExecutionError::FileFailures(summary) = result.expect_err("should fail") else {
@@ -471,6 +494,8 @@ mod tests {
             &SizeProvider,
             &StaticTimestampProvider,
             &mut out,
+            None,
+            None,
         )
         .unwrap();
 
