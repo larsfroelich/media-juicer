@@ -32,6 +32,9 @@ pub fn build_processing_plan(
     mode: ProcessingMode,
     only_suffix: Option<&str>,
 ) -> Result<ProcessingPlan> {
+    let source_root_canonical = fs::canonicalize(source_root)?;
+    let source_root = &source_root_canonical;
+
     let out_folder_path = if mode == ProcessingMode::FixDates {
         source_root.to_path_buf()
     } else {
@@ -214,8 +217,8 @@ mod tests {
         let plan = build_processing_plan(&source_root, ProcessingMode::FixDates, None).unwrap();
 
         assert_eq!(plan.files.len(), 1);
-        assert!(!plan.out_folder_path.exists());
-        assert!(!plan.out_folder_path.join("nested").exists());
+        let compressed_path = out_folder_for_source(&source_root).unwrap();
+        assert!(!compressed_path.exists());
     }
 
     #[test]

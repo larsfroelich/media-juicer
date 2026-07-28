@@ -106,6 +106,9 @@ fn webp_config_for_quality(quality: u8) -> Result<WebPConfig, String> {
         WebPConfig::new_with_preset(libwebp_sys::WebPPreset::WEBP_PRESET_PHOTO, quality.into())
             .map_err(|error| format!("{error:?}"))?;
     config.method = 6;
+    if quality < 75 {
+        config.near_lossless = quality as i32;
+    }
     Ok(config)
 }
 

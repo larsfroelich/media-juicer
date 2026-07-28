@@ -14,7 +14,11 @@ fn fixdates_run_leaves_no_output_tree() {
     fs::write(source_root.join("nested/photo.jpg"), b"image").expect("image file");
 
     let plan = build_processing_plan(&source_root, ProcessingMode::FixDates, None).expect("plan");
-    assert!(!plan.out_folder_path.exists());
+    let compressed_path = source_root.parent().unwrap().join(format!(
+        "{}_compressed",
+        source_root.file_name().unwrap().to_string_lossy()
+    ));
+    assert!(!compressed_path.exists());
 
     let config = MediaJuicerConfig {
         mode: ProcessingMode::FixDates,
@@ -36,5 +40,5 @@ fn fixdates_run_leaves_no_output_tree() {
 
     assert_eq!(summary.progress.processed_files, 1);
     assert!(summary.failures.is_empty());
-    assert!(!plan.out_folder_path.exists());
+    assert!(!compressed_path.exists());
 }
