@@ -106,9 +106,6 @@ fn webp_config_for_quality(quality: u8) -> Result<WebPConfig, String> {
         WebPConfig::new_with_preset(libwebp_sys::WebPPreset::WEBP_PRESET_PHOTO, quality.into())
             .map_err(|error| format!("{error:?}"))?;
     config.method = 6;
-    if quality < 75 {
-        config.near_lossless = quality as i32;
-    }
     Ok(config)
 }
 
@@ -391,15 +388,6 @@ mod tests {
     fn webp_config_uses_max_effort() {
         let config = webp_config_for_quality(85).expect("config");
         assert_eq!(config.method, 6);
-        assert_eq!(config.near_lossless, 100);
         assert_eq!(config.quality, 85.0);
-    }
-
-    #[test]
-    fn webp_config_enables_near_lossless_below_threshold() {
-        let config = webp_config_for_quality(74).expect("config");
-        assert_eq!(config.method, 6);
-        assert_eq!(config.near_lossless, 74);
-        assert_eq!(config.quality, 74.0);
     }
 }
