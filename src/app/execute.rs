@@ -74,7 +74,7 @@ pub fn execute_plan<B: ImageBackend, T: TimestampProvider>(
             continue;
         }
 
-        if let Err(error) = process_file(
+        match process_file(
             file,
             config,
             image_backend,
@@ -82,10 +82,22 @@ pub fn execute_plan<B: ImageBackend, T: TimestampProvider>(
             file_size_provider,
             timestamp_provider,
         ) {
-            failures.push(FileFailure {
-                path: file.source_path.clone(),
-                error,
-            });
+            Ok(Some(reason)) => {
+                writeln!(
+                    out,
+                    "Skipped \"{}\": {}",
+                    file.source_path.to_string_lossy(),
+                    reason
+                )
+                .map_err(|err| ExecutionError::ReportIo(err.to_string()))?;
+            }
+            Ok(None) => {}
+            Err(error) => {
+                failures.push(FileFailure {
+                    path: file.source_path.clone(),
+                    error,
+                });
+            }
         }
 
         progress.record_processed(file.size_bytes);
@@ -127,7 +139,7 @@ fn process_file<B: ImageBackend, T: TimestampProvider>(
     ffmpeg_executor: &dyn FfmpegExecutor,
     file_size_provider: &dyn FileSizeProvider,
     timestamp_provider: &T,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     match config.mode {
         ProcessingMode::All | ProcessingMode::Images if file.media_kind == MediaKind::Image => {
             process_image(file, config, image_backend)
@@ -136,7 +148,7 @@ fn process_file<B: ImageBackend, T: TimestampProvider>(
             process_video_file(file, config, ffmpeg_executor, file_size_provider)
         }
         ProcessingMode::FixDates => process_fix_dates(file, config, timestamp_provider),
-        _ => Ok(()),
+        _ => Ok(None),
     }
 }
 
@@ -144,7 +156,7 @@ fn process_image<B: ImageBackend>(
     file: &PlannedFile,
     config: &MediaJuicerConfig,
     image_backend: &B,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     let quality = u8::try_from(config.webpq)
         .map_err(|_| format!("invalid webp quality: {}", config.webpq))?;
     let max_pixels = u32::try_from(config.image_max_pixels)
@@ -158,9 +170,16 @@ fn process_image<B: ImageBackend>(
         ignore_timestamps: config.ignore_timestamps,
     };
 
-    process_image_job(&job, image_backend)
-        .map(|_| ())
-        .map_err(|error| error.to_string())
+    match process_image_job(&job, image_backend) {
+        Ok(crate::image_processing::ProcessOutcome::Processed) => Ok(None),
+        Ok(crate::image_processing::ProcessOutcome::SkippedExistingOutput) => {
+            Ok(Some("file already exists in the output dir".to_string()))
+        }
+        Ok(crate::image_processing::ProcessOutcome::AbortedTimestampMismatch) => {
+            Err("timestamps mismatch".to_string())
+        }
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 fn process_video_file(
@@ -168,7 +187,7 @@ fn process_video_file(
     config: &MediaJuicerConfig,
     ffmpeg_executor: &dyn FfmpegExecutor,
     file_size_provider: &dyn FileSizeProvider,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     let crf = u8::try_from(config.crf).map_err(|_| format!("invalid crf value: {}", config.crf))?;
     let video_max_pixels = u32::try_from(config.video_max_pixels)
         .map_err(|_| format!("invalid video max pixels: {}", config.video_max_pixels))?;
@@ -184,25 +203,35 @@ fn process_video_file(
         replace,
     };
 
-    process_video(&job, ffmpeg_executor, file_size_provider).map_err(|error| error.to_string())?;
+    let outcome = process_video(&job, ffmpeg_executor, file_size_provider)
+        .map_err(|error| error.to_string())?;
 
     let output_path = crate::video_processing::output_path_mp4(Path::new(&file.output_path));
     apply_replace_input(&file.source_path, &output_path, replace)
         .map_err(|error| error.to_string())?;
 
-    Ok(())
+    match outcome {
+        crate::video_processing::ProcessOutcome::Encoded
+        | crate::video_processing::ProcessOutcome::EncodedWithFallbackCopy => Ok(None),
+        crate::video_processing::ProcessOutcome::SkippedExisting => {
+            Ok(Some("file already exists in the output dir".to_string()))
+        }
+        crate::video_processing::ProcessOutcome::UsedExisting => Ok(None),
+    }
 }
 
 fn process_fix_dates<T: TimestampProvider>(
     file: &PlannedFile,
     config: &MediaJuicerConfig,
     timestamp_provider: &T,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     let timestamps = match timestamp_provider
         .creation_timestamps(&file.source_path, timestamp_kind(file.media_kind))
     {
         Ok(timestamps) => timestamps,
-        Err(_error) if config.ignore_timestamps => return Ok(()),
+        Err(_error) if config.ignore_timestamps => {
+            return Ok(Some("missing or invalid timestamps (ignored)".to_string()));
+        }
         Err(error) => return Err(error.to_string()),
     };
 
@@ -211,8 +240,8 @@ fn process_fix_dates<T: TimestampProvider>(
 
     let action = decide_action(exif, metadata);
     match apply_action(&file.source_path, action, exif) {
-        Ok(()) => Ok(()),
-        Err(_error) if config.ignore_timestamps => Ok(()),
+        Ok(()) => Ok(None),
+        Err(_error) if config.ignore_timestamps => Ok(Some("action failed (ignored)".to_string())),
         Err(error) => Err(error.to_string()),
     }
 }
@@ -253,14 +282,17 @@ mod tests {
     use std::io;
     use std::path::Path;
     use std::process::ExitStatus;
+    use std::time::SystemTime;
 
-    struct OkImageBackend;
+    struct OkImageBackend {
+        mock_timestamp: Option<SystemTime>,
+    }
 
     impl ImageBackend for OkImageBackend {
         fn open(&self, _source_path: &Path) -> Result<BackendImage, ImageProcessingError> {
             Ok(BackendImage::new(
                 image::DynamicImage::new_rgba8(1, 1),
-                None,
+                self.mock_timestamp,
             ))
         }
 
@@ -361,9 +393,12 @@ mod tests {
 
     #[test]
     fn prints_progress_for_each_handled_file() {
+        let now: SystemTime = Utc::now().into();
         let tmp = tempfile::tempdir().unwrap();
         let source = tmp.path().join("img.jpg");
         std::fs::write(&source, b"img").unwrap();
+        std::fs::create_dir_all(tmp.path().join("out")).unwrap();
+        filetime::set_file_mtime(&source, filetime::FileTime::from_system_time(now)).unwrap();
 
         let plan = ProcessingPlan {
             source_root: tmp.path().to_path_buf(),
@@ -381,13 +416,15 @@ mod tests {
         let result = execute_plan(
             &plan,
             &config(ProcessingMode::Images),
-            &OkImageBackend,
+            &OkImageBackend {
+                mock_timestamp: Some(now),
+            },
             &NoopExecutor,
             &SizeProvider,
             &StaticTimestampProvider,
             &mut out,
         )
-        .unwrap();
+        .expect("execute plan failed");
 
         assert_eq!(result.progress.processed_files, 1);
         let printed = String::from_utf8(out).unwrap();
@@ -426,7 +463,9 @@ mod tests {
         let result = execute_plan(
             &plan,
             &config(ProcessingMode::FixDates),
-            &OkImageBackend,
+            &OkImageBackend {
+                mock_timestamp: Some(Utc::now().into()),
+            },
             &NoopExecutor,
             &SizeProvider,
             &FailingTimestampProvider,
@@ -466,7 +505,9 @@ mod tests {
         let result = execute_plan(
             &plan,
             &config(ProcessingMode::Images),
-            &OkImageBackend,
+            &OkImageBackend {
+                mock_timestamp: Some(Utc::now().into()),
+            },
             &NoopExecutor,
             &SizeProvider,
             &StaticTimestampProvider,
