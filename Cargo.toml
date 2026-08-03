@@ -14,6 +14,9 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5", features = ["std"] }
+eframe = { version = "0.28", default-features = false, features = ["wgpu", "x11", "wayland"] }
+egui = "0.28"
+rfd = "0.14"
 filetime = "0.2"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 image = { version = "0.25", default-features = true, features = ["jpeg", "png", "bmp", "webp"] }

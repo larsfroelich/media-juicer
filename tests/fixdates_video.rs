@@ -76,6 +76,8 @@ fn fixdates_video_succeeds_when_ffprobe_provides_embedded_creation_time() {
         &ConstantSizeProvider { size: 1 },
         &FileSystemTimestampProvider,
         &mut out,
+        None,
+        None,
     );
 
     unsafe {

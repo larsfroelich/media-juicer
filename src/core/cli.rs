@@ -8,7 +8,14 @@ use crate::config::{FfmpegPreset, MediaJuicerConfig, ProcessingMode};
 const LEGACY_VERSION: &str = "03.00";
 
 pub fn parse_args() -> Result<MediaJuicerConfig, clap::Error> {
-    parse_args_from(std::env::args_os())
+    let args: Vec<_> = std::env::args_os().collect();
+    if args.len() <= 1 {
+        return Ok(MediaJuicerConfig {
+            gui: true,
+            ..MediaJuicerConfig::default()
+        });
+    }
+    parse_args_from(args)
 }
 
 fn command() -> clap::Command {
@@ -24,7 +31,7 @@ fn command() -> clap::Command {
         .version(LEGACY_VERSION)
         .arg(
             clap::Arg::new("folder_path")
-                .required(true)
+                .required(false)
                 .index(1)
                 .help("Source folder path"),
         )
@@ -94,6 +101,12 @@ fn command() -> clap::Command {
                 .default_value("1600")
                 .help("Max image pixels per dimension; 0 disables resize"),
         )
+        .arg(
+            clap::Arg::new("gui")
+                .long("gui")
+                .action(clap::ArgAction::SetTrue)
+                .help("Launch the GUI"),
+        )
 }
 
 pub fn parse_args_from<I, T>(args: I) -> Result<MediaJuicerConfig, clap::Error>
@@ -104,15 +117,18 @@ where
     let normalized_args = normalize_legacy_args(args);
     let matches = command().try_get_matches_from(normalized_args)?;
 
+    let gui = matches.get_flag("gui");
     let folder_path = matches
         .get_one::<String>("folder_path")
         .cloned()
-        .ok_or_else(|| {
-            clap::Error::raw(
-                ErrorKind::MissingRequiredArgument,
-                "missing required argument: folder_path",
-            )
-        })?;
+        .unwrap_or_default();
+
+    if folder_path.is_empty() && !gui {
+        return Err(clap::Error::raw(
+            ErrorKind::MissingRequiredArgument,
+            "missing required argument: folder_path (or use --gui)",
+        ));
+    }
 
     let mode = ProcessingMode::from_str(
         matches
@@ -178,6 +194,7 @@ where
         video_max_pixels,
         webpq,
         image_max_pixels,
+        gui,
     })
 }
 
@@ -267,6 +284,7 @@ mod tests {
         assert_eq!(parsed.video_max_pixels, 0);
         assert_eq!(parsed.webpq, 45);
         assert_eq!(parsed.image_max_pixels, 1600);
+        assert!(!parsed.gui);
     }
 
     #[test]
@@ -310,6 +328,21 @@ mod tests {
         assert_eq!(parsed.video_max_pixels, 1920);
         assert_eq!(parsed.webpq, 80);
         assert_eq!(parsed.image_max_pixels, 1080);
+        assert!(!parsed.gui);
+    }
+
+    #[test]
+    fn parses_gui_flag() {
+        let parsed = parse_args_from(["media-juicer", "--gui"]).unwrap();
+        assert!(parsed.gui);
+        assert_eq!(parsed.folder_path, "");
+    }
+
+    #[test]
+    fn parses_gui_flag_with_path() {
+        let parsed = parse_args_from(["media-juicer", "--gui", "/tmp/input"]).unwrap();
+        assert!(parsed.gui);
+        assert_eq!(parsed.folder_path, "/tmp/input");
     }
 
     #[test]
